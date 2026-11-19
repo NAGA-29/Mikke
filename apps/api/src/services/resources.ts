@@ -135,7 +135,9 @@ export function normalizeRepositoryUrl(raw: string): string {
   }
   const path = u.pathname.replace(/\/+$/, '').replace(/\.git$/i, '');
   if (!path || path === '/') throw invalid('invalid_repository_url', 'repository_url must include a repository path');
-  return `https://${u.hostname.toLowerCase()}${path}`;
+  // http(s) の明示ポートは別サーバーを指しうるので保持する（ssh/git のポートは HTTPS とは無関係なので捨てる）
+  const port = u.protocol === 'https:' || u.protocol === 'http:' ? u.port : '';
+  return `https://${u.hostname.toLowerCase()}${port ? `:${port}` : ''}${path}`;
 }
 
 const SELECT_WITH_DETAIL = `

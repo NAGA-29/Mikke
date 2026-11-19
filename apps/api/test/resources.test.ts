@@ -65,6 +65,9 @@ describe('resources', () => {
   it('normalizes and deduplicates repository URLs', async () => {
     expect(normalizeRepositoryUrl('git@github.com:PLUS9/Mikke.git')).toBe('https://github.com/PLUS9/Mikke');
     expect(normalizeRepositoryUrl('https://GitHub.com/PLUS9/Mikke/')).toBe('https://github.com/PLUS9/Mikke');
+    expect(normalizeRepositoryUrl('https://git.example.com:8443/team/repo.git')).toBe('https://git.example.com:8443/team/repo');
+    expect(normalizeRepositoryUrl('https://github.com:443/team/repo')).toBe('https://github.com/team/repo');
+    expect(normalizeRepositoryUrl('ssh://git@git.example.com:2222/team/repo.git')).toBe('https://git.example.com/team/repo');
     await create.repo('mikke', 'https://github.com/plus9/mikke.git');
     const dup = await call('POST', '/resources', {
       body: { resource_type: 'repository', name: 'dup', detail: { repository_url: 'git@github.com:plus9/mikke.git' } },

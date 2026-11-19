@@ -20,13 +20,13 @@ docs/            設計書・実装メモ
 ```bash
 docker compose up -d          # PostgreSQL 18（mikke / mikke_test）
 npm install
-cp .env.example .env          # 値を調整
+cp .env.example .env          # 値を調整（migrate / dev / start はルートの .env を読み込む）
 ```
 
 マイグレーション:
 
 ```bash
-DATABASE_URL=postgres://mikke:mikke@localhost:5432/mikke npm run migrate
+npm run migrate
 ```
 
 APIトークン発行（出力のJSONを `MIKKE_API_TOKENS` の配列に追加。生トークンは一度だけ表示）:
