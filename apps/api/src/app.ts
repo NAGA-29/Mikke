@@ -146,7 +146,30 @@ export function createApp({ pool, config }: AppDeps) {
   });
   api.put('/software/lifecycle-events/:id', write, async (c) => {
     const b = await body(c);
-    return c.json(await tx(c, (t, a) => software.updateLifecycleEvent(t, a, id(c), b)));
+    const result = await tx(c, (t, a) => software.updateLifecycleEvent(t, a, id(c), b));
+    // 承認待ちとして受け付けた場合は 202
+    return c.json(result, typeof result === 'object' && result !== null && 'pending_approval' in result ? 202 : 200);
+  });
+
+  const approve = requireScope('mikke:eol:approve');
+  const optionalBody = async (c: Context<AppEnv>) => {
+    const text = await c.req.text();
+    if (!text.trim()) return {};
+    try {
+      return JSON.parse(text) as unknown;
+    } catch {
+      throw invalid('invalid_json', 'request body must be JSON');
+    }
+  };
+  api.get('/software/lifecycle-event-change-requests', read, async (c) => c.json(await software.listChangeRequests(pool, query(c))));
+  api.get('/software/lifecycle-event-change-requests/:id', read, async (c) => c.json(await software.getChangeRequest(pool, id(c))));
+  api.post('/software/lifecycle-event-change-requests/:id/approve', approve, async (c) => {
+    const b = await optionalBody(c);
+    return c.json(await tx(c, (t, a) => software.approveChangeRequest(t, a, id(c), b)));
+  });
+  api.post('/software/lifecycle-event-change-requests/:id/reject', approve, async (c) => {
+    const b = await optionalBody(c);
+    return c.json(await tx(c, (t, a) => software.rejectChangeRequest(t, a, id(c), b)));
   });
 
   const assign = (kind: software.TargetKind) => async (c: Context<AppEnv>) => {

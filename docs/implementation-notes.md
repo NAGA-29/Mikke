@@ -6,7 +6,7 @@
 
 | 層 | 採用 |
 |---|---|
-| DB | **PostgreSQL 18**（`docker-compose.yml`）。DDLは16以降で動く構文のみ使用 |
+| DB | **PostgreSQL 18 必須**（`uuidv7()` を使用。マイグレーションCLIは18未満を拒否） |
 | API | TypeScript / Node.js 22, Hono, node-postgres, zod |
 | マイグレーション | `db/migrations/*.sql` を素のSQLで管理し、`schema_migrations` に適用履歴を記録 |
 | テスト | Vitest + 実PostgreSQL（`mikke_test` を毎回作り直す） |
@@ -29,12 +29,24 @@
 | 10 | 「稼働中の管理対象資産」(§12.0) | `archived_at IS NULL AND lifecycle_status <> 'retired'` |
 | 11 | 無関係な系列の登録拒否 (§12.0-3) | 系列作成・イベント作成時に「その系列が稼働中資産に割当済み」または「同製品の稼働中資産のバージョンが照合規則に一致」を要求。`assign_to` 指定時は作成と割当を同一TX |
 | 12 | 冪等処理 (§12.4) | 同一内容のイベント再登録は既存を 200 で返す。内容が違えば差分付き 409（上書きは PUT） |
-| 13 | 既存EOL日付の変更は承認済み操作に限定 (§12.2-5) | `event_date` の変更は `mikke:eol:approve` スコープ必須。無ければ差分付き 403 `approval_required` |
+| 13 | 既存EOL日付の変更は承認済み操作に限定 (§12.2-5) | 承認待ちキュー `lifecycle_event_change_requests`（18本目のテーブル）を追加。下記参照 |
 | 14 | 認証情報をDBに格納しない (§1-6) | `attributes` の秘密っぽいキー（password/secret/token/api_key 等）と、`endpoint` / `repository_url` の userinfo を拒否 |
 | 15 | アーカイブ済みResource | 新しい関係（配置・依存・導入・ホスト先・系列割当）を張れない（409 `resource_archived`）。既存の deployment の inactive 化などは可能 |
 | 16 | `recorded_by` | 入力させず認証主体（トークンの `actor_id`）を記録 |
 | 17 | API トークン保存先 | テーブルを増やさず環境変数 `MIKKE_API_TOKENS`（SHA-256 ハッシュのみ）で管理 |
 | 18 | `diagram_hidden_edges` の掃除 (§4.14) | relation / app_repository の削除時、および `host_compute_id` 変更時に該当行を削除 |
+
+| 19 | UUID 初期値は `gen_random_uuid()` | PG18 の `uuidv7()`（時系列順。挿入効率とID順ソートのため）に変更 |
+| 20 | unknown の条件「情報未確認」(§12.1) | 系列が `unverified` でも根拠付きの終了日があれば日付で判定し、`needs_verification: true` で注意表示。`disputed` のみ unknown |
+
+## EOL日付変更の承認フロー
+
+1. `mikke:eol:approve` を持たない主体（Agent等）が `PUT /software/lifecycle-events/{id}` で `event_date` を変えると、即時反映せず **202** と承認待ち（`pending`）の変更依頼を返す。差分付き。`change_note` で根拠を添えられる
+2. 同じイベントに未決の依頼があれば旧依頼は `superseded`
+3. 承認者が `POST /software/lifecycle-event-change-requests/{id}/approve` または `/reject`
+4. 承認時は依頼時点の `updated_at` と一致することを確認（その後イベントが変わっていれば 409 `stale_update`）
+5. 依頼者本人は決裁できない（API と DB の CHECK で二重に保証）
+6. 反映後の `recorded_by` は調査・提案した主体、監査ログの `actor_id` は承認者。承認者自身の直接更新は即時反映
 
 ## スコープと操作
 

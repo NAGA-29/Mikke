@@ -403,7 +403,12 @@ const createEventSchema = z.strictObject({
   notes: eventFields.notes.optional(),
 });
 
-const putEventSchema = z.strictObject({ ...eventFields, expected_updated_at: timestamp });
+const putEventSchema = z.strictObject({
+  ...eventFields,
+  expected_updated_at: timestamp,
+  // 承認待ちになった場合に承認者へ伝える根拠・理由
+  change_note: z.string().max(10_000).nullable().optional(),
+});
 
 interface EventRow {
   id: string;
@@ -456,27 +461,153 @@ export async function createLifecycleEvent(tx: PoolClient, actor: Actor, body: u
   return row;
 }
 
-/** 既存日付の変更は mikke:eol:approve が必要（設計 §12.2-5, §12.3） */
+const EVENT_COLUMNS = [...Object.keys(eventFields), 'recorded_by'];
+
+async function applyEventUpdate(tx: PoolClient, actorId: string, recordedBy: string, before: EventRow, data: Record<string, unknown>, extra?: object) {
+  const after = await updateColumns<EventRow>(tx, 'software_lifecycle_events', 'id', before.id, { ...data, recorded_by: recordedBy }, EVENT_COLUMNS);
+  await recordAudit(tx, {
+    actorId,
+    action: 'update',
+    entityType: 'software_lifecycle_event',
+    entityId: before.id,
+    before,
+    after: extra ? { ...after, ...extra } : after,
+  });
+  return after;
+}
+
+/**
+ * ライフサイクルイベントの全更新（楽観ロック必須）。
+ * 既存日付の変更は mikke:eol:approve が必要。権限が無い主体の日付変更は即時反映せず、
+ * 承認待ち（lifecycle_event_change_requests）として登録する（設計 §12.2-5, §12.3）。
+ */
 export async function updateLifecycleEvent(tx: PoolClient, actor: Actor, id: string, body: unknown) {
-  const { expected_updated_at, ...input } = parse(putEventSchema, body);
+  const { expected_updated_at, change_note, ...input } = parse(putEventSchema, body);
   const before = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE id = $1 FOR UPDATE', [id]);
   if (!before) throw notFound('lifecycle event', id);
   assertNotStale(before.updated_at, expected_updated_at, before);
+
   if (before.event_date !== input.event_date && !hasScope(actor, 'mikke:eol:approve')) {
-    throw forbidden('approval_required', 'changing an existing lifecycle date requires mikke:eol:approve', {
-      diff: diffFields(before, input, ['event_date', 'source_url']),
-    });
+    const request = await createChangeRequest(tx, actor, before, input, change_note ?? null);
+    return { pending_approval: true as const, change_request: request };
   }
-  const after = await updateColumns(
+  return applyEventUpdate(tx, actor.id, actor.id, before, input);
+}
+
+// ===========================================================================
+// lifecycle_event_change_requests（EOL日付変更の承認待ちキュー）
+// ===========================================================================
+
+interface ChangeRequestRow {
+  id: string;
+  lifecycle_event_id: string;
+  base_updated_at: string;
+  before_data: Record<string, unknown>;
+  proposed_data: Record<string, unknown>;
+  status: 'pending' | 'approved' | 'rejected' | 'superseded';
+  requested_by: string;
+}
+
+async function createChangeRequest(tx: PoolClient, actor: Actor, before: EventRow, proposed: Record<string, unknown>, note: string | null) {
+  // 同じイベントへの未決の提案は置き換える
+  const superseded = await many<{ id: string }>(
     tx,
-    'software_lifecycle_events',
-    'id',
-    id,
-    { ...input, recorded_by: actor.id },
-    [...Object.keys(eventFields), 'recorded_by'],
+    `UPDATE lifecycle_event_change_requests
+        SET status = 'superseded', decided_by = $2, decided_at = now(), decision_note = 'superseded by a newer request'
+      WHERE lifecycle_event_id = $1 AND status = 'pending' RETURNING id`,
+    [before.id, actor.id],
   );
-  await recordAudit(tx, { actorId: actor.id, action: 'update', entityType: 'software_lifecycle_event', entityId: id, before, after });
-  return after;
+  for (const r of superseded) {
+    await recordAudit(tx, { actorId: actor.id, action: 'supersede', entityType: 'lifecycle_event_change_request', entityId: r.id });
+  }
+  const row = await insertRow<ChangeRequestRow>(tx, 'lifecycle_event_change_requests', {
+    lifecycle_event_id: before.id,
+    base_updated_at: before.updated_at,
+    before_data: before,
+    proposed_data: proposed,
+    requested_by: actor.id,
+    request_note: note,
+  });
+  await recordAudit(tx, { actorId: actor.id, action: 'request_change', entityType: 'lifecycle_event_change_request', entityId: row.id, after: row });
+  return { ...row, diff: diffFields(before, proposed, Object.keys(eventFields)) };
+}
+
+const CHANGE_REQUEST_SELECT = `
+  SELECT cr.*, e.event_type, e.release_cycle_id, c.cycle, p.name AS product_name
+    FROM lifecycle_event_change_requests cr
+    JOIN software_lifecycle_events e ON e.id = cr.lifecycle_event_id
+    JOIN software_release_cycles c ON c.id = e.release_cycle_id
+    JOIN software_products p ON p.id = c.software_product_id`;
+
+export async function listChangeRequests(db: Queryable, query: unknown) {
+  const f = parse(
+    z.object({
+      status: z.enum(['pending', 'approved', 'rejected', 'superseded']).optional(),
+      lifecycle_event_id: uuid.optional(),
+    }),
+    query,
+  );
+  return many(
+    db,
+    `${CHANGE_REQUEST_SELECT}
+      WHERE ($1::text IS NULL OR cr.status = $1) AND ($2::uuid IS NULL OR cr.lifecycle_event_id = $2)
+      ORDER BY cr.created_at DESC, cr.id`,
+    [f.status ?? null, f.lifecycle_event_id ?? null],
+  );
+}
+
+export async function getChangeRequest(db: Queryable, id: string) {
+  const row = await one(db, `${CHANGE_REQUEST_SELECT} WHERE cr.id = $1`, [id]);
+  if (!row) throw notFound('change request', id);
+  return row;
+}
+
+const decisionSchema = z.strictObject({ note: z.string().max(10_000).nullable().optional() });
+
+async function lockPendingRequest(tx: PoolClient, actor: Actor, id: string) {
+  const req = await one<ChangeRequestRow>(tx, 'SELECT * FROM lifecycle_event_change_requests WHERE id = $1 FOR UPDATE', [id]);
+  if (!req) throw notFound('change request', id);
+  if (req.status !== 'pending') throw conflict('not_pending', `change request is already ${req.status}`);
+  if (req.requested_by === actor.id) {
+    throw forbidden('self_approval', 'a change request cannot be decided by its requester');
+  }
+  return req;
+}
+
+async function decide(tx: PoolClient, actor: Actor, id: string, status: 'approved' | 'rejected', note: string | null) {
+  return one<ChangeRequestRow>(
+    tx,
+    `UPDATE lifecycle_event_change_requests
+        SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4
+      WHERE id = $1 RETURNING *`,
+    [id, status, actor.id, note],
+  );
+}
+
+/**
+ * 承認: 提案時点からイベントが変わっていなければ提案内容を反映する。
+ * 変わっていれば 409 stale_update（提案は pending のまま。却下して出し直す）。
+ * recorded_by は情報を調べて提案した主体（requested_by）、監査の actor は承認者。
+ */
+export async function approveChangeRequest(tx: PoolClient, actor: Actor, id: string, body: unknown) {
+  const { note } = parse(decisionSchema, body ?? {});
+  const req = await lockPendingRequest(tx, actor, id);
+  const event = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE id = $1 FOR UPDATE', [req.lifecycle_event_id]);
+  if (!event) throw notFound('lifecycle event', req.lifecycle_event_id);
+  assertNotStale(event.updated_at, req.base_updated_at, event);
+  const proposed = parse(z.strictObject(eventFields), req.proposed_data);
+  const updated = await applyEventUpdate(tx, actor.id, req.requested_by, event, proposed, { approved_change_request_id: id });
+  const decided = await decide(tx, actor, id, 'approved', note ?? null);
+  await recordAudit(tx, { actorId: actor.id, action: 'approve', entityType: 'lifecycle_event_change_request', entityId: id, before: req, after: decided });
+  return { change_request: decided, lifecycle_event: updated };
+}
+
+export async function rejectChangeRequest(tx: PoolClient, actor: Actor, id: string, body: unknown) {
+  const { note } = parse(decisionSchema, body ?? {});
+  const req = await lockPendingRequest(tx, actor, id);
+  const decided = await decide(tx, actor, id, 'rejected', note ?? null);
+  await recordAudit(tx, { actorId: actor.id, action: 'reject', entityType: 'lifecycle_event_change_request', entityId: id, before: req, after: decided });
+  return decided;
 }
 
 export async function getLifecycleEvent(db: Queryable, id: string) {

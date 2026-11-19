@@ -8,6 +8,7 @@ const TOKENS: Record<string, { actor: string; scopes: Scope[] }> = {
   reader: { actor: 'test:reader', scopes: ['mikke:read'] },
   writer: { actor: 'test:writer', scopes: ['mikke:read', 'mikke:write'] },
   approver: { actor: 'test:approver', scopes: ['mikke:read', 'mikke:write', 'mikke:eol:approve'] },
+  approver2: { actor: 'test:approver2', scopes: ['mikke:read', 'mikke:write', 'mikke:eol:approve'] },
   admin: { actor: 'test:admin', scopes: ['mikke:admin'] },
 };
 export type Who = keyof typeof TOKENS;
@@ -28,6 +29,7 @@ export const app = createApp({
 
 const TABLES = [
   'audit_logs',
+  'lifecycle_event_change_requests',
   'diagram_hidden_edges',
   'diagram_nodes',
   'diagrams',

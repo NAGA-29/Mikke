@@ -1,6 +1,6 @@
 -- Mikke DB basic design v1.1 — initial schema (17 tables)
 -- 正本: docs/db-basic-design-v1.1.md
--- 設計書からの補強点は docs/implementation-notes.md を参照。
+-- 要件: PostgreSQL 18 以上（uuidv7()）。設計書からの補強点は docs/implementation-notes.md を参照。
 
 -- ---------------------------------------------------------------------------
 -- 共通: updated_at 自動更新
@@ -17,7 +17,7 @@ $$;
 -- 1. resources
 -- ---------------------------------------------------------------------------
 CREATE TABLE resources (
-  id               uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id               uuid         PRIMARY KEY DEFAULT uuidv7(),
   resource_type    varchar(32)  NOT NULL
                    CHECK (resource_type IN ('compute', 'application', 'service_instance', 'repository')),
   name             varchar(255) NOT NULL,
@@ -41,7 +41,7 @@ CREATE INDEX resources_name_idx ON resources (name);
 -- 8. software_products
 -- ---------------------------------------------------------------------------
 CREATE TABLE software_products (
-  id              uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id              uuid         PRIMARY KEY DEFAULT uuidv7(),
   name            varchar(255) NOT NULL,
   normalized_name varchar(255) NOT NULL,
   vendor          varchar(255),
@@ -59,7 +59,7 @@ CREATE UNIQUE INDEX software_products_identity_uq
 -- 16. software_release_cycles
 -- ---------------------------------------------------------------------------
 CREATE TABLE software_release_cycles (
-  id                  uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  uuid         PRIMARY KEY DEFAULT uuidv7(),
   software_product_id uuid         NOT NULL REFERENCES software_products (id),
   cycle               varchar(100) NOT NULL,
   match_pattern       varchar(255),
@@ -81,7 +81,7 @@ CREATE TRIGGER software_release_cycles_updated_at BEFORE UPDATE ON software_rele
 -- 17. software_lifecycle_events
 -- ---------------------------------------------------------------------------
 CREATE TABLE software_lifecycle_events (
-  id               uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id               uuid         PRIMARY KEY DEFAULT uuidv7(),
   release_cycle_id uuid         NOT NULL REFERENCES software_release_cycles (id),
   event_type       varchar(50)  NOT NULL
                    CHECK (event_type IN ('release', 'active_support_end', 'security_support_end', 'eol')),
@@ -187,7 +187,7 @@ CREATE TABLE repositories (
 -- 6. application_repositories
 -- ---------------------------------------------------------------------------
 CREATE TABLE application_repositories (
-  id             uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  id             uuid        PRIMARY KEY DEFAULT uuidv7(),
   application_id uuid        NOT NULL REFERENCES applications (resource_id),
   repository_id  uuid        NOT NULL REFERENCES repositories (resource_id),
   purpose        varchar(32) NOT NULL DEFAULT 'source'
@@ -201,7 +201,7 @@ CREATE INDEX application_repositories_repo_idx ON application_repositories (repo
 -- 7. deployments
 -- ---------------------------------------------------------------------------
 CREATE TABLE deployments (
-  id                 uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                 uuid         PRIMARY KEY DEFAULT uuidv7(),
   application_id     uuid         NOT NULL REFERENCES applications (resource_id),
   target_resource_id uuid         NOT NULL REFERENCES resources (id),
   repository_id      uuid         REFERENCES repositories (resource_id),
@@ -225,7 +225,7 @@ CREATE INDEX deployments_repo_idx ON deployments (repository_id);
 -- 9. software_installations
 -- ---------------------------------------------------------------------------
 CREATE TABLE software_installations (
-  id                  uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                  uuid         PRIMARY KEY DEFAULT uuidv7(),
   compute_asset_id    uuid         NOT NULL REFERENCES compute_assets (resource_id),
   software_product_id uuid         NOT NULL REFERENCES software_products (id),
   version             varchar(255),
@@ -269,7 +269,7 @@ INSERT INTO relation_types (code, label, description) VALUES
 -- 11. resource_relations
 -- ---------------------------------------------------------------------------
 CREATE TABLE resource_relations (
-  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  id                 uuid        PRIMARY KEY DEFAULT uuidv7(),
   source_resource_id uuid        NOT NULL REFERENCES resources (id),
   target_resource_id uuid        NOT NULL REFERENCES resources (id),
   relation_type      varchar(50) NOT NULL REFERENCES relation_types (code),
@@ -287,7 +287,7 @@ CREATE INDEX resource_relations_target_idx ON resource_relations (target_resourc
 -- 12-14. diagrams
 -- ---------------------------------------------------------------------------
 CREATE TABLE diagrams (
-  id          uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          uuid         PRIMARY KEY DEFAULT uuidv7(),
   name        varchar(255) NOT NULL,
   description text,
   viewport    jsonb        NOT NULL DEFAULT '{}'::jsonb,
@@ -298,7 +298,7 @@ CREATE TRIGGER diagrams_updated_at BEFORE UPDATE ON diagrams
   FOR EACH ROW EXECUTE FUNCTION mikke_set_updated_at();
 
 CREATE TABLE diagram_nodes (
-  id              uuid             PRIMARY KEY DEFAULT gen_random_uuid(),
+  id              uuid             PRIMARY KEY DEFAULT uuidv7(),
   diagram_id      uuid             NOT NULL REFERENCES diagrams (id) ON DELETE CASCADE,
   resource_id     uuid             NOT NULL REFERENCES resources (id),
   position_x      double precision NOT NULL,
@@ -322,7 +322,7 @@ CREATE INDEX diagram_hidden_edges_record_idx ON diagram_hidden_edges (edge_kind,
 -- 15. audit_logs
 -- ---------------------------------------------------------------------------
 CREATE TABLE audit_logs (
-  id          uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  id          uuid         PRIMARY KEY DEFAULT uuidv7(),
   actor_id    varchar(255) NOT NULL,
   action      varchar(50)  NOT NULL,
   entity_type varchar(100) NOT NULL,

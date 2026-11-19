@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { isValidPattern, versionMatches } from '../src/lib/version.js';
-import { call, create, ok } from './helpers.js';
+import { call, create, ok, pool } from './helpers.js';
 
 const SRC = 'https://www.php.net/supported-versions.php';
 const checked = () => new Date().toISOString();
@@ -119,10 +119,12 @@ describe('release cycles & lifecycle events (MVP受け入れ基準8,9)', () => {
     expect(stale.status).toBe(409);
     expect(stale.body.error.code).toBe('stale_update');
 
-    // 日付変更は承認権限が必要（差分を提示）
-    const denied = await put('writer', { event_date: '2029-06-30' }, touched.body.updated_at);
-    expect(denied.status).toBe(403);
-    expect(denied.body.error.details.diff.event_date.after).toBe('2029-06-30');
+    // 承認権限の無い主体の日付変更は即時反映されず承認待ちになる（差分を提示）
+    const pending = await put('writer', { event_date: '2029-01-31', change_note: 'vendor extended support' }, touched.body.updated_at);
+    expect(pending.status).toBe(202);
+    expect(pending.body.change_request.status).toBe('pending');
+    expect(pending.body.change_request.diff.event_date).toEqual({ before: '2028-12-31', after: '2029-01-31' });
+    expect((await ok('GET', `/software/lifecycle-events/${ev.id}`)).event_date).toBe('2028-12-31');
 
     const approved = await put('approver', { event_date: '2029-06-30' }, touched.body.updated_at);
     expect(approved.status).toBe(200);
@@ -130,7 +132,70 @@ describe('release cycles & lifecycle events (MVP受け入れ基準8,9)', () => {
 
     const logs = await ok('GET', `/audit-logs?entity_type=software_lifecycle_event&entity_id=${ev.id}`);
     expect(logs[0].before_data.event_date).toBe('2028-12-31');
+    // 承認者が直接更新したので、提案は事前状態が変わり承認できない（stale）
+    const stalePending = await call('POST', `/software/lifecycle-event-change-requests/${pending.body.change_request.id}/approve`, { as: 'approver' });
+    expect(stalePending.status).toBe(409);
     expect(logs[0].after_data.event_date).toBe('2029-06-30');
+  });
+});
+
+describe('lifecycle event change requests (承認待ちキュー)', () => {
+  async function setup() {
+    const { php, inst } = await phpOnVps();
+    const cycle = await ok('POST', '/software/release-cycles', {
+      body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
+    });
+    const ev = await ok('POST', '/software/lifecycle-events', {
+      body: { release_cycle_id: cycle.id, event_type: 'eol', event_date: '2028-12-31', source_url: SRC, checked_at: checked() },
+    });
+    const propose = async (date: string, base = ev.updated_at) =>
+      call('PUT', `/software/lifecycle-events/${ev.id}`, {
+        body: { event_date: date, source_url: SRC, source_title: 'PHP Supported Versions', checked_at: checked(), notes: null, expected_updated_at: base },
+      });
+    return { ev, propose };
+  }
+
+  it('approver applies the proposal; recorded_by stays the researcher, audit actor is the approver', async () => {
+    const { ev, propose } = await setup();
+    const req = (await propose('2029-01-31')).body.change_request;
+
+    expect((await call('POST', `/software/lifecycle-event-change-requests/${req.id}/approve`)).status).toBe(403); // writer
+    const listed = await ok('GET', '/software/lifecycle-event-change-requests?status=pending');
+    expect(listed).toHaveLength(1);
+    expect(listed[0].product_name).toBe('PHP');
+
+    const res = await ok('POST', `/software/lifecycle-event-change-requests/${req.id}/approve`, { as: 'approver', body: { note: 'confirmed on php.net' } });
+    expect(res.change_request.status).toBe('approved');
+    expect(res.change_request.decided_by).toBe('test:approver');
+    expect(res.lifecycle_event.event_date).toBe('2029-01-31');
+    expect(res.lifecycle_event.recorded_by).toBe('test:writer');
+
+    const logs = await ok('GET', `/audit-logs?entity_type=software_lifecycle_event&entity_id=${ev.id}`);
+    expect(logs[0].actor_id).toBe('test:approver');
+    expect(logs[0].after_data.approved_change_request_id).toBe(req.id);
+
+    expect((await call('POST', `/software/lifecycle-event-change-requests/${req.id}/reject`, { as: 'approver' })).body.error.code).toBe('not_pending');
+  });
+
+  it('supports reject, supersede and forbids self approval', async () => {
+    const { ev, propose } = await setup();
+    const first = (await propose('2029-01-31')).body.change_request;
+    const second = (await propose('2029-02-28')).body.change_request;
+    expect((await ok('GET', `/software/lifecycle-event-change-requests/${first.id}`)).status).toBe('superseded');
+
+    const rejected = await ok('POST', `/software/lifecycle-event-change-requests/${second.id}/reject`, { as: 'approver', body: { note: 'no official source' } });
+    expect(rejected.status).toBe('rejected');
+    expect((await ok('GET', `/software/lifecycle-events/${ev.id}`)).event_date).toBe('2028-12-31');
+
+    // 承認権限を持つ主体でも、自分の提案は自分で決裁できない（DB の CHECK でも保証）
+    const { rows } = await pool.query(
+      `INSERT INTO lifecycle_event_change_requests (lifecycle_event_id, base_updated_at, before_data, proposed_data, requested_by)
+       VALUES ($1, now(), '{}', '{}', 'test:approver') RETURNING id`,
+      [ev.id],
+    );
+    const self = await call('POST', `/software/lifecycle-event-change-requests/${rows[0].id}/approve`, { as: 'approver' });
+    expect(self.status).toBe(403);
+    expect(self.body.error.code).toBe('self_approval');
   });
 });
 
@@ -177,6 +242,8 @@ describe('EOL status', () => {
     expect(byName['installation:PHP'].reason).toBe('end_date_not_registered');
     expect(byName['service_instance:redis'].reason).toBe('product_not_identified');
     expect(res.summary).toMatchObject({ eol: 1, approaching_eol: 1, unknown: 2, supported: 0 });
+    // unverified の系列も日付で判定し、注意フラグを付ける
+    expect(byName['compute_os:Ubuntu'].needs_verification).toBe(true);
 
     // 鮮度: 確認日時から180日超なら stale
     const later = await ok('GET', `/eol/status?as_of=2027-12-01&status=eol`);

@@ -132,6 +132,8 @@ export async function listEolStatus(db: Queryable, settings: EolSettings, query:
               verified_at: row.verified_at,
             }
           : null,
+        // 系列の照合が人/Agentにより確認されていない（判定はするが注意表示する）
+        needs_verification: row.release_cycle_id ? row.verification_status !== 'verified' : null,
         // 割当後にバージョンが変わり系列と食い違った場合の注意フラグ
         cycle_mismatch: row.release_cycle_id ? !versionMatches(row.version, row.cycle!, row.match_pattern) : null,
         ...ev,
@@ -143,7 +145,11 @@ export async function listEolStatus(db: Queryable, settings: EolSettings, query:
   return {
     as_of: asOf,
     thresholds: { warning_days: settings.eolWarningDays, stale_days: settings.eolStaleDays },
-    summary: { ...summary, stale: items.filter((i) => i.stale).length },
+    summary: {
+      ...summary,
+      stale: items.filter((i) => i.stale).length,
+      needs_verification: items.filter((i) => i.needs_verification).length,
+    },
     items,
   };
 }

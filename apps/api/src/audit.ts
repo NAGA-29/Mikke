@@ -6,7 +6,11 @@ export type AuditAction =
   | 'archive'
   | 'restore'
   | 'delete'
-  | 'assign_release_cycle';
+  | 'assign_release_cycle'
+  | 'request_change'
+  | 'approve'
+  | 'reject'
+  | 'supersede';
 
 export interface AuditEntry {
   actorId: string;

@@ -10,7 +10,7 @@ PLUS9.inc（ArkEve）内部専用の軽量CMDB。
 ## 構成
 
 ```
-db/migrations/   PostgreSQL 18 向けスキーマ（素のSQL）
+db/migrations/   スキーマ（素のSQL、PostgreSQL 18 必須）
 apps/api/        REST API（TypeScript / Hono / node-postgres）
 docs/            設計書・実装メモ
 ```
@@ -57,7 +57,8 @@ npm test
 | GET / POST / PATCH | `/deployments` | read / write |
 | GET / POST / PATCH | `/software/products`, `/software/installations` | read / write |
 | GET / POST / PUT | `/software/release-cycles` | read / write |
-| GET / POST / PUT | `/software/lifecycle-events` | read / write（日付変更は eol:approve） |
+| GET / POST / PUT | `/software/lifecycle-events` | read / write（eol:approve が無い日付変更は承認待ち・202） |
+| GET / POST | `/software/lifecycle-event-change-requests`, `/{id}/approve`, `/{id}/reject` | read / eol:approve |
 | PUT | `/software/installations/{id}/release-cycle`, `/services/{id}/release-cycle`, `/compute/{id}/os-release-cycle` | write |
 | GET | `/eol/status` | read |
 | GET | `/audit-logs` | read |
