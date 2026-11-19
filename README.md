@@ -6,6 +6,8 @@ PLUS9.inc（ArkEve）内部専用の軽量CMDB。
 
 - 設計: [docs/db-basic-design-v1.1.md](docs/db-basic-design-v1.1.md)
 - 実装メモ（設計の補強・解釈）: [docs/implementation-notes.md](docs/implementation-notes.md)
+- 次の作業・未決事項: [docs/TODO.md](docs/TODO.md)
+- 開発ルール（AI Agent 向け）: [CLAUDE.md](CLAUDE.md)
 
 ## 構成
 

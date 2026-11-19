@@ -1,0 +1,68 @@
+# Mikke TODO
+
+最終更新: 2026-11-19（Step 1 完了時点）
+実装順序は設計書 §10 に従う。完了したらチェックを付け、日付と PR を書き添える。
+
+## 現在の状態
+
+- [x] **Step 1: DB + REST API + テスト**（[PR #1](https://github.com/NAGA-29/Mikke/pull/1)）
+  - 18テーブル（設計の17 + EOL日付変更の承認待ちキュー）、PostgreSQL 18
+  - 資産・関係・デプロイ・ソフトウェア・EOL・監査ログの REST API、スコープ付きトークン認証
+  - 統合テスト35件（実DB）。§10 の受け入れ基準のうち API で確認できるものは網羅
+
+## 次にやること
+
+### Step 2: 手動登録・編集・検索 UI
+設計書 §10-2。スタックは React + Vite SPA（`apps/web` を新設）。
+
+- [ ] `apps/web` の雛形（Vite + React + TypeScript）。API は `/api/v1` を呼ぶ
+- [ ] 認証：当面はAPIトークンを入力して保持する簡易ログイン（SSOは未決、下記参照）
+- [ ] 資産一覧・検索（種別・環境・名前・アーカイブ含む）
+- [ ] 資産の詳細画面：共通項目＋種別ごとの詳細、`/resources/{id}/references` による参照一覧
+- [ ] 種別ごとの登録・編集フォーム（compute / application / service_instance / repository）
+- [ ] 依存関係・デプロイ・アプリ↔Repo の登録・削除
+- [ ] ソフトウェア導入の登録、リリース系列の割当
+- [ ] EOL ダッシュボード（`/eol/status`：eol / approaching / supported / unknown、stale・要確認フラグ）
+- [ ] EOL 日付変更の承認待ち一覧と承認・却下（`mikke:eol:approve` 保持者向け）
+- [ ] アーカイブ・復元（admin のみ。実行前に参照一覧を表示）
+- [ ] 監査ログの閲覧
+- 確認事項：設計書が参考にしている「TestReportPortal に近い UI」がどういうものか、着手前にユーザーに聞く
+
+### Step 3: Graph API と Canvas
+設計書 §5・§6・§10-3。
+
+- [ ] Diagram API：`diagrams` / `diagram_nodes` / `diagram_hidden_edges` の CRUD（テーブルは作成済み、API は未実装）
+- [ ] `GET /graph?diagram_id=` — 配置ノードと、正本から組み立てたエッジ（relation / deployment / hosting / app_repository）を返す。Graph 用に二重保存しない
+- [ ] 表示ルール：両端が図にあるエッジだけ。非表示指定を除外。アーカイブ済みノードは淡色＋警告
+- [ ] Canvas（React Flow）：接続の種類に応じて正本を更新する（§6 の 1〜7）
+- [ ] 正本削除時の `diagram_hidden_edges` 掃除は実装済み。孤児を見つける定期チェックの SQL を用意する
+
+### Step 4: 読み書き MCP
+設計書 §9・§12.3・§12.4。
+
+- [ ] MCP サーバー（公式 TypeScript SDK）。`apps/api` と同じ `services/*` を呼ぶ。直接SQLで更新しない
+- [ ] 初期ツール：`search_resources`, `get_resource`, `get_application_deployments`, `get_resource_dependencies`, `get_resource_graph`, `search_software_installations`, `list_eol_status`, `get_software_lifecycle`, `create_resource`, `update_resource`, `create_software_release_cycle`, `update_software_release_cycle`, `create_lifecycle_event`, `update_lifecycle_event`, `assign_release_cycle`
+- [ ] アーカイブ・関係削除・EOLイベント削除などの破壊的操作は公開しない
+- [ ] Agent ごとのトークンとスコープ。書き込み用の認証情報をプロンプトやログに出さない
+- [ ] Agent による EOL 調査フロー（§12.2）が API だけで完結することを確認する
+
+### Step 5: DADADA・SHIORI との横断検証
+別マイルストーン。着手前に連携の範囲をユーザーに確認する。
+
+## 未決事項（ユーザーの判断が必要）
+
+- [ ] SSO の方式（Google Workspace OIDC / GitHub OAuth など）。今はAPIトークンのみ
+- [ ] 本番のデプロイ先と運用（DB のホスティング、バックアップ、トークンの配布方法）
+- [ ] Step 2 の UI の参考像（「TestReportPortal に近い」の具体）
+
+## 技術的な宿題
+
+- [ ] **CI がまだ無い**。GitHub Actions で PostgreSQL 18 のサービスコンテナを立て、`npm run typecheck` と `npm test` を回す
+- [ ] OpenAPI など API 仕様の機械可読な定義（UI と MCP の実装前にあると楽）
+- [ ] EOL系以外の更新にも楽観ロック（`expected_updated_at`）を入れる（§6-8 で「後日」とされている）
+- [ ] 資産と種別詳細の1:1整合（詳細行が欠けた資産）を見つける定期チェック SQL（§13）
+- [ ] 一覧APIの総件数（今は `limit` / `offset` のみ）と、名前検索の高速化（`pg_trgm`、§8）
+
+## 将来（MVP 外・設計書 §11）
+
+CPE/purl と CVE 照合、EOL 情報の自動収集、SSH / AWS API による資産の自動収集、依存関係の影響分析、関係の属性（ポート・プロトコル等）と履歴、Canvas のリアルタイム共同編集。
