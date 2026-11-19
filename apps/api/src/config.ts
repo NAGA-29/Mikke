@@ -41,6 +41,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 function nonNegativeInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
   const raw = env[name];
   if (raw === undefined) return fallback;
-  if (!/^\d+$/.test(raw.trim())) throw new Error(`${name} must be a non-negative integer (got "${raw}")`);
-  return Number(raw.trim());
+  const value = Number(raw.trim());
+  // 数字だけでも桁が多すぎると Infinity になるため、安全な整数範囲まで確認する
+  if (!/^\d+$/.test(raw.trim()) || !Number.isSafeInteger(value)) {
+    throw new Error(`${name} must be a non-negative integer (got "${raw}")`);
+  }
+  return value;
 }

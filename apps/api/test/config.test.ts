@@ -9,7 +9,7 @@ describe('loadConfig', () => {
     expect(loadConfig({ ...base, MIKKE_EOL_WARNING_DAYS: '0' }).eolWarningDays).toBe(0);
   });
   it('refuses invalid EOL thresholds instead of silently disabling warnings', () => {
-    for (const v of ['abc', '', ' ', '-1', '1.5', 'NaN']) {
+    for (const v of ['abc', '', ' ', '-1', '1.5', 'NaN', '9'.repeat(309), '9007199254740993']) {
       expect(() => loadConfig({ ...base, MIKKE_EOL_WARNING_DAYS: v }), v).toThrow(/non-negative integer/);
     }
     expect(() => loadConfig({ ...base, MIKKE_EOL_STALE_DAYS: 'abc' })).toThrow(/MIKKE_EOL_STALE_DAYS/);
