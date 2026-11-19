@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: mikke
+      POSTGRES_PASSWORD: mikke
+      POSTGRES_DB: mikke
+    ports:
+      # 開発用の既定パスワードなので localhost からの接続だけに限定する
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # PostgreSQL 18 公式イメージはデータを /var/lib/postgresql/18/docker に置くため親ディレクトリをマウントする
+      - mikke-db:/var/lib/postgresql
+      - ./db/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+volumes:
+  mikke-db:

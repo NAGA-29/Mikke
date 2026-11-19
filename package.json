@@ -1,0 +1,11 @@
+{
+  "name": "mikke",
+  "private": true,
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "migrate": "npm run migrate -w @mikke/api",
+    "dev": "npm run dev -w @mikke/api",
+    "test": "npm test -w @mikke/api",
+    "typecheck": "npm run typecheck -w @mikke/api"
+  }
+}
