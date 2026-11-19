@@ -101,6 +101,17 @@ describe('deployments (MVP受け入れ基準2)', () => {
     expect(unlinked.body.error.code).toBe('repository_not_linked');
   });
 
+  it('allows deactivating a deployment whose repository is archived when the same repository_id is resent', async () => {
+    const app = await create.app('web');
+    const repo = await create.repo('web', 'https://github.com/plus9/web');
+    const vps = await create.compute('vps');
+    await ok('POST', '/application-repositories', { body: { application_id: app.id, repository_id: repo.id } });
+    const d = await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' } });
+    await ok('POST', `/resources/${repo.id}/archive`, { as: 'admin' });
+    const r = await ok('PATCH', `/deployments/${d.id}`, { body: { status: 'inactive', repository_id: repo.id } });
+    expect(r.status).toBe('inactive');
+  });
+
   it('refuses to unlink a repository still used by deployments', async () => {
     const app = await create.app('web');
     const repo = await create.repo('web', 'https://github.com/plus9/web');

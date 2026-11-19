@@ -32,7 +32,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl,
     port: Number(env.PORT ?? 8080),
     tokens,
-    eolWarningDays: Number(env.MIKKE_EOL_WARNING_DAYS ?? 90),
-    eolStaleDays: Number(env.MIKKE_EOL_STALE_DAYS ?? 180),
+    eolWarningDays: nonNegativeInt(env, 'MIKKE_EOL_WARNING_DAYS', 90),
+    eolStaleDays: nonNegativeInt(env, 'MIKKE_EOL_STALE_DAYS', 180),
   };
+}
+
+/** 未指定なら既定値。指定された場合は 0 以上の整数のみ許可（不正値で警告が黙って無効になるのを防ぐ） */
+function nonNegativeInt(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const raw = env[name];
+  if (raw === undefined) return fallback;
+  if (!/^\d+$/.test(raw.trim())) throw new Error(`${name} must be a non-negative integer (got "${raw}")`);
+  return Number(raw.trim());
 }

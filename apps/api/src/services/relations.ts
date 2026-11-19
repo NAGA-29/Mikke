@@ -132,6 +132,11 @@ export async function listApplicationRepositories(db: Queryable, query: unknown)
 }
 
 export async function deleteApplicationRepository(tx: PoolClient, actor: Actor, id: string) {
+  const link = await one<{ application_id: string }>(tx, 'SELECT application_id FROM application_repositories WHERE id = $1', [id]);
+  if (!link) throw notFound('application repository link', id);
+  // 同じアプリのリンク削除・deployment作成（アプリ行に FOR SHARE）と直列化するため、アプリ行を先にロックする。
+  // ロック取得後にリンクの存在と使用状況を読み直す
+  await tx.query('SELECT 1 FROM resources WHERE id = $1 FOR UPDATE', [link.application_id]);
   const before = await one<{ id: string; application_id: string; repository_id: string }>(
     tx,
     'SELECT * FROM application_repositories WHERE id = $1 FOR UPDATE',

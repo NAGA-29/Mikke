@@ -21,13 +21,18 @@ export interface ResourceRow {
 /**
  * Resource を取得し、存在・種別・アーカイブ状態を検証する。
  * 新しい関係（配置・依存・導入など）をアーカイブ済みResourceへ張ることは禁止（復元してから行う）。
+ *
+ * ロック: lock=true は FOR UPDATE。アーカイブ済みを拒否する通常の検証では FOR SHARE を取り、
+ * 検証後・コミット前に別トランザクションがアーカイブ（FOR UPDATE）できないようにする。
+ * 共有ロック同士は競合しないので、関係作成どうしでデッドロックは起きない。
  */
 export async function requireResource(
   db: Queryable,
   id: string,
   opts: { types?: readonly ResourceType[]; allowArchived?: boolean; lock?: boolean; label?: string } = {},
 ): Promise<ResourceRow> {
-  const row = await one<ResourceRow>(db, `SELECT * FROM resources WHERE id = $1${opts.lock ? ' FOR UPDATE' : ''}`, [id]);
+  const lockClause = opts.lock ? ' FOR UPDATE' : opts.allowArchived ? '' : ' FOR SHARE';
+  const row = await one<ResourceRow>(db, `SELECT * FROM resources WHERE id = $1${lockClause}`, [id]);
   const label = opts.label ?? 'resource';
   if (!row) throw notFound(label, id);
   if (opts.types && !opts.types.includes(row.resource_type)) {
@@ -57,7 +62,7 @@ export const EOL_TARGETS_SQL = `
   SELECT 'service_instance', s.resource_id, s.resource_id,
          s.software_product_id, s.release_cycle_id, s.engine_version
     FROM service_instances s JOIN resources r ON r.id = s.resource_id
-   WHERE ${IN_SERVICE} AND (s.software_product_id IS NOT NULL OR s.engine_version IS NOT NULL)
+   WHERE ${IN_SERVICE} AND (s.software_product_id IS NOT NULL OR s.engine IS NOT NULL OR s.engine_version IS NOT NULL)
   UNION ALL
   SELECT 'compute_os', c.resource_id, c.resource_id,
          c.os_software_product_id, c.os_release_cycle_id, c.os_version

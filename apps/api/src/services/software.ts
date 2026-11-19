@@ -297,6 +297,16 @@ const createCycleSchema = z.strictObject({
 // PUT = 全更新。楽観ロック用 expected_updated_at は必須（設計 §12.2-5）
 const putCycleSchema = z.strictObject({ ...cycleFields, expected_updated_at: timestamp });
 
+/** match_pattern が無い場合は cycle 自体が照合規則として解析できなければならない */
+function requireMatchable<T extends { cycle: string; match_pattern?: string | null }>(input: T): T {
+  if (!input.match_pattern && !isValidPattern(input.cycle)) {
+    throw invalid('cycle_not_matchable', 'cycle is not a valid version prefix; set match_pattern explicitly (e.g. "8.4")', {
+      cycle: input.cycle,
+    });
+  }
+  return input;
+}
+
 /** verified にするなら確認日時・確認者を必ず残す */
 function fillVerification<T extends { verification_status: string; verified_at?: string | null; verified_by?: string | null }>(
   input: T,
@@ -321,7 +331,7 @@ async function isCycleRelevant(db: Queryable, productId: string, cycleId: string
 }
 
 export async function createReleaseCycle(tx: PoolClient, actor: Actor, body: unknown) {
-  const { assign_to, ...input } = fillVerification(parse(createCycleSchema, body), actor);
+  const { assign_to, ...input } = requireMatchable(fillVerification(parse(createCycleSchema, body), actor));
   await getProduct(tx, input.software_product_id);
   const existing = await one<CycleRow>(
     tx,
@@ -344,12 +354,17 @@ export async function createReleaseCycle(tx: PoolClient, actor: Actor, body: unk
       release_cycle_id: row.id,
       allow_version_mismatch: assign_to.allow_version_mismatch,
     });
+    // retired の資産への割当だけでは「稼働中資産が使う系列」にならない（設計 §12.0）
+    if (!(await isCycleRelevant(tx, input.software_product_id, row.id, input.cycle, input.match_pattern ?? null))) {
+      throw invalid('release_cycle_not_in_use', 'the assign_to target is not an in-service asset (archived or retired)');
+    }
   }
+
   return { ...row, assignment };
 }
 
 export async function updateReleaseCycle(tx: PoolClient, actor: Actor, id: string, body: unknown) {
-  const { expected_updated_at, ...input } = fillVerification(parse(putCycleSchema, body), actor);
+  const { expected_updated_at, ...input } = requireMatchable(fillVerification(parse(putCycleSchema, body), actor));
   const before = await one<CycleRow>(tx, 'SELECT * FROM software_release_cycles WHERE id = $1 FOR UPDATE', [id]);
   if (!before) throw notFound('release cycle', id);
   assertNotStale(before.updated_at, expected_updated_at, before);
@@ -591,9 +606,12 @@ async function decide(tx: PoolClient, actor: Actor, id: string, status: 'approve
  */
 export async function approveChangeRequest(tx: PoolClient, actor: Actor, id: string, body: unknown) {
   const { note } = parse(decisionSchema, body ?? {});
+  // 再提案（イベント行 → 依頼行の順にロック）とロック順序を揃え、デッドロックを避ける。lifecycle_event_id は不変
+  const ref = await one<{ lifecycle_event_id: string }>(tx, 'SELECT lifecycle_event_id FROM lifecycle_event_change_requests WHERE id = $1', [id]);
+  if (!ref) throw notFound('change request', id);
+  const event = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE id = $1 FOR UPDATE', [ref.lifecycle_event_id]);
+  if (!event) throw notFound('lifecycle event', ref.lifecycle_event_id);
   const req = await lockPendingRequest(tx, actor, id);
-  const event = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE id = $1 FOR UPDATE', [req.lifecycle_event_id]);
-  if (!event) throw notFound('lifecycle event', req.lifecycle_event_id);
   assertNotStale(event.updated_at, req.base_updated_at, event);
   const proposed = parse(z.strictObject(eventFields), req.proposed_data);
   const updated = await applyEventUpdate(tx, actor.id, req.requested_by, event, proposed, { approved_change_request_id: id });

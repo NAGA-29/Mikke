@@ -74,7 +74,11 @@ export async function updateDeployment(tx: PoolClient, actor: Actor, id: string,
   if (input.target_resource_id && input.target_resource_id !== before.target_resource_id) {
     await validateTarget(tx, input.target_resource_id);
   }
-  if (input.repository_id) await validateRepository(tx, before.application_id, input.repository_id);
+  if (input.repository_id && input.repository_id !== before.repository_id) {
+    // リンク削除と直列化するためアプリ行に共有ロックを取る（deleteApplicationRepository は FOR UPDATE）
+    await requireResource(tx, before.application_id, { types: ['application'], label: 'application' });
+    await validateRepository(tx, before.application_id, input.repository_id);
+  }
   const after = await updateColumns<DeploymentRow>(tx, 'deployments', 'id', id, input, Object.keys(fields));
   await recordAudit(tx, { actorId: actor.id, action: 'update', entityType: 'deployment', entityId: id, before, after });
   return after;

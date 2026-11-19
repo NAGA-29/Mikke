@@ -56,12 +56,23 @@ export const attributes = z.record(z.string(), z.unknown()).superRefine((v, ctx)
   }
 });
 
-/** 接続先識別子。URL形式なら userinfo（user:pass@）や秘密っぽいクエリを禁止 */
+const SECRET_QUERY_KEY = /pass(word|wd)?|pwd|secret|token|key|credential|auth|sig(nature)?/i;
+
+function endpointHasCredentials(v: string): boolean {
+  if (/^[a-z][a-z0-9+.-]*:\/\/[^/@\s]+@/i.test(v)) return true;
+  const q = v.indexOf('?');
+  if (q < 0) return false;
+  // URLSearchParams はクエリ名を復号する（%70assword → password）
+  const params = new URLSearchParams(v.slice(q + 1).split('#')[0]);
+  for (const name of params.keys()) if (SECRET_QUERY_KEY.test(name)) return true;
+  return false;
+}
+
+/** 接続先識別子。URL形式なら userinfo（user:pass@）や認証情報らしいクエリ名を禁止 */
 export const endpoint = z
   .string()
   .trim()
   .max(1024)
-  .refine((v) => !/^[a-z][a-z0-9+.-]*:\/\/[^/@\s]+@/i.test(v), 'endpoint must not contain credentials')
-  .refine((v) => !/[?&](password|pass|pwd|token|secret|key)=/i.test(v), 'endpoint must not contain credentials');
+  .refine((v) => !endpointHasCredentials(v), 'endpoint must not contain credentials');
 
 export const ipAddress = z.union([z.ipv4(), z.ipv6()]);

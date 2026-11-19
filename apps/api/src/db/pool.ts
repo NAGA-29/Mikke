@@ -8,7 +8,13 @@ pg.types.setTypeParser(1082, (v: string) => v);
 export type Queryable = pg.Pool | pg.PoolClient;
 
 export function createPool(connectionString: string): pg.Pool {
-  return new pg.Pool({ connectionString, options: '-c TimeZone=UTC' });
+  const pool = new pg.Pool({ connectionString, options: '-c TimeZone=UTC' });
+  // アイドル接続の切断（DB再起動など）は Pool の error イベントで通知される。
+  // 未処理だとプロセスが落ちるので記録だけ行い、切断された接続の除去と再接続は pg に任せる。
+  pool.on('error', (err) => {
+    console.error('postgres pool error (idle client):', err.message);
+  });
+  return pool;
 }
 
 export async function withTx<T>(pool: pg.Pool, fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {

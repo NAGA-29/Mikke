@@ -32,16 +32,16 @@ describe('resources', () => {
   });
 
   it('creates the common row and detail in one transaction (detail failure rolls back)', async () => {
+    await create.repo('first', 'https://github.com/plus9/shared');
+    // 共通行の INSERT 後に、詳細行の一意制約違反で失敗させる
     const r = await call('POST', '/resources', {
-      body: {
-        resource_type: 'service_instance',
-        name: 'orphan',
-        detail: { service_kind: 'database', host_compute_id: '00000000-0000-4000-8000-000000000000' },
-      },
+      body: { resource_type: 'repository', name: 'orphan', detail: { repository_url: 'git@github.com:plus9/shared.git' } },
     });
-    expect(r.status).toBe(404);
+    expect(r.status).toBe(409);
     const { rows } = await pool.query(`SELECT count(*)::int AS n FROM resources WHERE name = 'orphan'`);
     expect(rows[0].n).toBe(0);
+    const audit = await pool.query(`SELECT count(*)::int AS n FROM audit_logs WHERE after_data->>'name' = 'orphan'`);
+    expect(audit.rows[0].n).toBe(0);
   });
 
   it('rejects credentials in attributes and endpoint', async () => {
@@ -53,6 +53,14 @@ describe('resources', () => {
       body: { resource_type: 'service_instance', name: 'b', detail: { service_kind: 'database', endpoint: 'postgres://u:p@db:5432/x' } },
     });
     expect(b.status).toBe(422);
+    for (const ep of ['https://db.example/?access_token=x', 'https://db.example/?api_key=x', 'https://db.example/?%70assword=x']) {
+      const r = await call('POST', '/resources', {
+        body: { resource_type: 'service_instance', name: 'c', detail: { service_kind: 'database', endpoint: ep } },
+      });
+      expect(r.status, ep).toBe(422);
+    }
+    await create.service('ok', { service_kind: 'database', endpoint: 'db.internal:5432' });
+    await create.service('ok2', { service_kind: 'database', endpoint: 'postgres://db.internal:5432/app?sslmode=require' });
   });
 
   it('enforces resource_type/detail consistency at the DB level', async () => {
@@ -87,6 +95,16 @@ describe('resources', () => {
     expect(logs[0].actor_id).toBe('test:writer');
     expect(logs[0].before_data.detail.os_version).toBe('22.04');
     expect(logs[0].after_data.detail.os_version).toBe('24.04');
+  });
+
+  it('refuses to change service_kind away from hosting while deployments target it', async () => {
+    const app = await create.app('web');
+    const run = await create.service('cloud-run', { service_kind: 'hosting', is_managed: true });
+    await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: run.id, environment: 'prod' } });
+    const r = await call('PATCH', `/resources/${run.id}`, { body: { detail: { service_kind: 'database' } } });
+    expect(r.status).toBe(409);
+    expect(r.body.error.code).toBe('hosting_in_use');
+    await ok('PATCH', `/resources/${run.id}`, { body: { detail: { engine: 'Cloud Run' } } });
   });
 
   it('rejects detail fields of another resource type', async () => {

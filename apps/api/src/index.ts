@@ -15,9 +15,14 @@ const server = serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`mikke api listening on :${info.port}`);
 });
 
+let shuttingDown = false;
 const shutdown = () => {
-  server.close();
-  void pool.end();
+  if (shuttingDown) return;
+  shuttingDown = true;
+  // 受理済みリクエストの処理が終わってから DB 接続を閉じる
+  server.close(() => {
+    void pool.end().finally(() => process.exit(0));
+  });
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);

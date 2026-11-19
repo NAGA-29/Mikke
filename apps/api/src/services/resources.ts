@@ -243,6 +243,20 @@ export async function updateResource(tx: PoolClient, actor: Actor, id: string, b
     detail.repository_url = normalizeRepositoryUrl(detail.repository_url);
   }
   await validateDetailRefs(tx, resource.resource_type, detail, before.detail);
+  if (
+    resource.resource_type === 'service_instance' &&
+    before.detail?.service_kind === 'hosting' &&
+    detail.service_kind !== undefined &&
+    detail.service_kind !== 'hosting'
+  ) {
+    // 行は FOR UPDATE 済みで、deployment 作成側は配置先に FOR SHARE を取るため並行作成とも直列化される
+    const used = await one<{ n: number }>(tx, 'SELECT count(*)::int AS n FROM deployments WHERE target_resource_id = $1', [id]);
+    if (used?.n) {
+      throw conflict('hosting_in_use', 'service_kind cannot change from hosting while deployments target this service', {
+        deployments: used.n,
+      });
+    }
+  }
 
   const { detail: _ignored, ...base } = input;
   await updateColumns(tx, 'resources', 'id', id, base, [

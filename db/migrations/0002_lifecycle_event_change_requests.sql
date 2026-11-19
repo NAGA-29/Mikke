@@ -20,7 +20,10 @@ CREATE TABLE lifecycle_event_change_requests (
   updated_at         timestamptz  NOT NULL DEFAULT now(),
   CHECK (jsonb_typeof(proposed_data) = 'object' AND jsonb_typeof(before_data) = 'object'),
   -- 決裁済みなら決裁者・日時が必須。pending なら空
-  CHECK ((status = 'pending') = (decided_by IS NULL AND decided_at IS NULL)),
+  CHECK (
+    (status = 'pending' AND decided_by IS NULL AND decided_at IS NULL)
+    OR (status <> 'pending' AND decided_by IS NOT NULL AND decided_at IS NOT NULL)
+  ),
   -- 職務分離: 依頼者が自分で承認・却下しない
   CHECK (decided_by IS NULL OR status = 'superseded' OR decided_by <> requested_by)
 );

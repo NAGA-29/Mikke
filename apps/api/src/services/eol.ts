@@ -58,6 +58,8 @@ export function evaluate(row: Row, asOf: string, s: EolSettings) {
   if (!row.software_product_id) return unknown('product_not_identified');
   if (!row.release_cycle_id) return unknown('release_cycle_not_assigned');
   if (row.verification_status === 'disputed') return unknown('release_cycle_disputed');
+  // 割当後に版が変わり系列と一致しなくなった場合、その系列の期限で判定しない
+  if (!versionMatches(row.version, row.cycle!, row.match_pattern)) return unknown('version_cycle_mismatch');
 
   const [end, basis, checked, source] = row.eol_date
     ? [row.eol_date, 'eol' as const, row.eol_checked_at, row.eol_source_url]
