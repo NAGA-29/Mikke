@@ -354,8 +354,12 @@ export async function createReleaseCycle(tx: PoolClient, actor: Actor, body: unk
       release_cycle_id: row.id,
       allow_version_mismatch: assign_to.allow_version_mismatch,
     });
-    // retired の資産への割当だけでは「稼働中資産が使う系列」にならない（設計 §12.0）
-    if (!(await isCycleRelevant(tx, input.software_product_id, row.id, input.cycle, input.match_pattern ?? null))) {
+    // 割当先そのものが稼働中の管理対象でなければならない（retired の資産への割当では「利用中の系列」にならない。設計 §12.0）
+    const inService = await one(tx, `SELECT 1 FROM (${EOL_TARGETS_SQL}) t WHERE t.target_kind = $1 AND t.target_id = $2`, [
+      assign_to.target_kind,
+      assign_to.target_id,
+    ]);
+    if (!inService) {
       throw invalid('release_cycle_not_in_use', 'the assign_to target is not an in-service asset (archived or retired)');
     }
   }

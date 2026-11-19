@@ -223,6 +223,30 @@ describe('release cycle validation (review fixes)', () => {
     expect(await ok('GET', `/software/release-cycles?software_product_id=${php.id}`)).toHaveLength(0);
   });
 
+  it('rejects a retired assign_to target even when another in-service asset matches the cycle', async () => {
+    const { php } = await phpOnVps('8.4.3'); // 稼働中の資産
+    const old = await create.compute('old-vps');
+    const oldInst = await ok('POST', '/software/installations', { body: { compute_asset_id: old.id, software_product_id: php.id, version: '8.4.1' } });
+    await ok('PATCH', `/resources/${old.id}`, { body: { lifecycle_status: 'retired' } });
+    const r = await call('POST', '/software/release-cycles', {
+      body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: oldInst.id } },
+    });
+    expect(r.status).toBe(422);
+    expect(r.body.error.code).toBe('release_cycle_not_in_use');
+  });
+
+  it('rejects an unmatchable cycle on PUT when match_pattern is null', async () => {
+    const { php, inst } = await phpOnVps('8.4.3');
+    const cycle = await ok('POST', '/software/release-cycles', {
+      body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
+    });
+    const base = { verification_status: 'unverified', verified_at: null, verified_by: null, notes: null, expected_updated_at: cycle.updated_at };
+    const bad = await call('PUT', `/software/release-cycles/${cycle.id}`, { body: { ...base, cycle: '8 4', match_pattern: null } });
+    expect(bad.status).toBe(422);
+    expect(bad.body.error.code).toBe('cycle_not_matchable');
+    await ok('PUT', `/software/release-cycles/${cycle.id}`, { body: { ...base, cycle: 'PHP 8.4', match_pattern: '8.4' } });
+  });
+
   it('rejects incomplete decision records at the DB level', async () => {
     const { php, inst } = await phpOnVps();
     const cycle = await ok('POST', '/software/release-cycles', {
