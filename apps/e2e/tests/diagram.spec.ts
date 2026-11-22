@@ -61,4 +61,35 @@ test.describe('構成図 / Canvas', () => {
     if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: `${process.env.SCREENSHOT_DIR}/canvas-shapes.png`, fullPage: true });
     void testInfo;
   });
+  test('線の見た目をこの図だけ変更でき、再読み込み後も残り、既定に戻せる', async ({ page, request }) => {
+    const app = await seedResource(request, { resource_type: 'application', name: unique('style-app'), detail: {} });
+    const db = await seedResource(request, { resource_type: 'service_instance', name: unique('style-db'), detail: { service_kind: 'database' } });
+    const mkDiagram = async () => {
+      const d = await api(request, 'POST', '/diagrams', { name: unique('style') });
+      for (const [r, x] of [[app, 0], [db, 400]] as const) await api(request, 'POST', `/diagrams/${d.body.id}/nodes`, { resource_id: r.id, position_x: x, position_y: 0 });
+      return d.body.id as string;
+    };
+    const [d1, d2] = [await mkDiagram(), await mkDiagram()];
+    const rel = await api(request, 'POST', '/relations', { source_resource_id: app.id, target_resource_id: db.id, relation_type: 'connects_to' });
+    expect(rel.status, JSON.stringify(rel.body)).toBe(201);
+    const path = (p: import('@playwright/test').Page) => p.locator('.react-flow__edge path.react-flow__edge-path').first();
+
+    await loginOk(page);
+    await page.goto(`/diagrams/${d1}`);
+    expect(await path(page).getAttribute('d')).not.toContain(' L ');
+    await path(page).click({ force: true });
+    await page.getByTestId('edge-line').selectOption('wavy');
+    await expect.poll(() => path(page).getAttribute('d')).toContain(' L ');
+    await expect(page.getByTestId('edge-line')).toHaveValue('wavy');
+
+    await page.goto(`/diagrams/${d1}`);
+    await expect.poll(() => path(page).getAttribute('d')).toContain(' L ');
+    await page.goto(`/diagrams/${d2}`);
+    await expect.poll(() => path(page).getAttribute('d')).not.toContain(' L ');
+
+    await page.goto(`/diagrams/${d1}`);
+    await path(page).click({ force: true });
+    await page.getByTestId('edge-style-reset').click();
+    await expect.poll(() => path(page).getAttribute('d')).not.toContain(' L ');
+  });
 });

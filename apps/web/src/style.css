@@ -288,3 +288,4 @@ summary { cursor: pointer; font-weight: 600; }
 /* ページ送り */
 .pager { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; margin-block: var(--space-4); font-size: var(--font-sm); color: var(--color-muted); }
 .pager > span { margin-right: auto; }
+.edge-style { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: end; margin-block: var(--space-3); }

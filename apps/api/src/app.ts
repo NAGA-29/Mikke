@@ -151,6 +151,16 @@ export function createApp({ pool, config }: AppDeps) {
     return c.body(null, 204);
   });
 
+  api.get('/diagrams/:id/edge-styles', read, async (c) => c.json(await diagrams.listEdgeStyles(pool, id(c))));
+  api.put('/diagrams/:id/edge-styles', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.setEdgeStyle(t, a, id(c), b)));
+  });
+  api.delete('/diagrams/:id/edge-styles/:kind/:recordId', write, async (c) => {
+    await tx(c, (t, a) => diagrams.resetEdgeStyle(t, a, id(c), c.req.param('kind'), id(c, 'recordId')));
+    return c.body(null, 204);
+  });
+
   // ---- software products / installations ----------------------------------
   api.get('/software/products', read, async (c) => c.json(await software.listProducts(pool, query(c))));
   api.get('/software/products/:id', read, async (c) => c.json(await software.getProduct(pool, id(c))));

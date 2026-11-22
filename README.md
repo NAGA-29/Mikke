@@ -100,6 +100,7 @@ pnpm test
 | GET / POST | `/software/lifecycle-event-change-requests`, `/{id}/approve`, `/{id}/reject` | read / eol:approve |
 | PUT | `/software/installations/{id}/release-cycle`, `/services/{id}/release-cycle`, `/compute/{id}/os-release-cycle` | write |
 | GET | `/eol/status` | read |
+| GET / PUT / DELETE | `/diagrams/{id}/edge-styles`（この図だけの線種・矢印の上書き） | read / write |
 | GET | `/audit-logs` | read |
 
 ## MCP（stdio）

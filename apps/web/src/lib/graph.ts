@@ -12,6 +12,8 @@ export interface GraphNode {
 export interface GraphEdge {
   edge_kind: EdgeKind; edge_record_id: string; source_resource_id: string; target_resource_id: string;
   label: string; details: { environment?: string; status?: string; purpose?: string };
+  /** この図だけの上書き（未設定は null）。 */
+  style?: { line_style: LineKind; arrow_style: ArrowKind } | null;
 }
 export interface Graph { diagram: Diagram; nodes: GraphNode[]; edges: GraphEdge[] }
 export interface HiddenEdge { edge_kind: EdgeKind; edge_record_id: string }
@@ -43,7 +45,16 @@ export type LineKind = 'solid' | 'dashed' | 'dotted' | 'wavy';
 export type ArrowKind = 'closed' | 'open' | 'none';
 export interface EdgeLook { line: LineKind; arrow: ArrowKind; width: number; dash?: string; legend: string }
 /** 線種・矢印は関係の種類から導出する。凡例（canvas-legend）にも同じ表を使う */
-export function edgeLook(e: Pick<GraphEdge, 'edge_kind' | 'label'>): EdgeLook {
+export const LINE_LABEL: Record<LineKind, string> = { solid: '実線', dashed: '破線', dotted: '点線', wavy: '波線' };
+export const ARROW_LABEL: Record<ArrowKind, string> = { closed: '塗り矢印', open: '開き矢印', none: '矢印なし' };
+const DASH: Record<LineKind, string | undefined> = { solid: undefined, dashed: '8 5', dotted: '2 5', wavy: undefined };
+/** 既定の見た目（関係の種類から導出）に、この図の上書きがあれば重ねる */
+export function edgeLook(e: Pick<GraphEdge, 'edge_kind' | 'label'> & { style?: GraphEdge['style'] }): EdgeLook {
+  const base = defaultLook(e);
+  if (!e.style) return base;
+  return { ...base, line: e.style.line_style, arrow: e.style.arrow_style, dash: DASH[e.style.line_style], legend: '' };
+}
+export function defaultLook(e: Pick<GraphEdge, 'edge_kind' | 'label'>): EdgeLook {
   if (e.edge_kind === 'deployment') return { line: 'dashed', arrow: 'closed', width: 2, dash: '8 5', legend: '破線＋塗り矢印' };
   if (e.edge_kind === 'hosting') return { line: 'solid', arrow: 'none', width: 3.5, legend: '太線（矢印なし）' };
   if (e.edge_kind === 'app_repository') return { line: 'dotted', arrow: 'open', width: 2, dash: '2 5', legend: '点線＋開き矢印' };

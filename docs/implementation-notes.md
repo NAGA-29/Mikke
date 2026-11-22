@@ -116,4 +116,6 @@
 - ノードの形状は保存しない。資産種別と細分類（`compute_assets.asset_kind` / `service_instances.service_kind`）から表示時に導出する（`web/src/lib/graph.ts` の `nodeShape`）。DB スキーマと設計の正本は変更していない。
 - そのため `GET /graph` のノードに表示用の `kind`（コンピュートは asset_kind、サービスは service_kind、他は null）を追加した。正本の複製ではなく、JOIN で参照するだけ。
 - エッジの線種・矢印は `edge_kind` と relation_type（`label`）から導出する（`edgeLook`）。波線は発行・購読（publishes_to / consumes_from）。凡例も同じ関数から描く。
-- 線種や形状をユーザーが図ごとに自由に変えられる機能（保存）は入れていない。必要になれば `diagram_nodes` / 図ごとの設定に列を足す別マイグレーションで対応する。
+- 線の線種・矢印は、図ごとに上書きできる（`diagram_edge_styles`、マイグレーション 0003）。正本の関係は変えず、他の図にも影響しない。未設定は上記の既定。API は `GET/PUT /diagrams/{id}/edge-styles`、`DELETE /diagrams/{id}/edge-styles/{kind}/{recordId}`（write）。`GET /graph` の各エッジに `style`（未設定は null）を含める。ロック順は hidden-edges と同じ（正本 → 図）。変更は監査ログ（`diagram_edge_style`）に残り、図の削除時は削除前の内容を監査に残す。
+- 正本の関係が削除されると上書き行は孤児として残る（hidden-edges と同じ扱い）。`db/checks/orphan_diagram_edge_styles.sql` で検出できる。
+- ノード形状の上書きは入れていない（資産の細分類から導出するのみ）。
