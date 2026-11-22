@@ -39,10 +39,10 @@ export function ResourceDetail() {
       <h3>種別ごとの詳細</h3>
       <DetailList detail={res.detail} />
       <div className="form-actions">
-        <Link to="/software/products">ソフトウェア製品</Link>
-        {res.resource_type === 'compute' && <Link to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</Link>}
-        <Link to={`/eol?resource_id=${res.id}`}>この資産のEOL</Link>
-        <Link to={`/audit-logs?entity_type=resource&entity_id=${res.id}`}>監査ログ</Link>
+        <Link className="button" to="/software/products">ソフトウェア製品</Link>
+        {res.resource_type === 'compute' && <Link className="button" to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</Link>}
+        <Link className="button" to={`/eol?resource_id=${res.id}`}>この資産のEOL</Link>
+        <Link className="button" to={`/audit-logs?entity_type=resource&entity_id=${res.id}`}>監査ログ</Link>
       </div>
       {!res.archived_at && (res.resource_type === 'compute' || res.resource_type === 'service_instance') && <ReleaseCycleAssignment
         key={`${res.id}-${res.updated_at}`} path={res.resource_type === 'compute' ? `/compute/${res.id}/os-release-cycle` : `/services/${res.id}/release-cycle`}
@@ -60,8 +60,8 @@ export function ResourceDetail() {
 /** 種別ごとの詳細。値のある項目だけを一覧にし、object（attributes）は整形JSONで示す */
 function DetailList({ detail }: { detail: Record<string, unknown> | null }) {
   const entries = Object.entries(detail ?? {}).filter(([, v]) => v !== null && v !== '' && !(typeof v === 'object' && Object.keys(v as object).length === 0));
-  if (entries.length === 0) return <p className="muted">登録されている詳細項目はありません。</p>;
-  return <dl data-testid="detail-list">
+  if (entries.length === 0) return <dl className="detail-card"><dd className="muted">登録されている詳細項目はありません。</dd></dl>;
+  return <dl className="detail-card" data-testid="detail-list">
     {entries.map(([k, v]) => <div key={k} style={{ display: 'contents' }}>
       <dt>{k}</dt>
       <dd>{typeof v === 'object' ? <pre>{JSON.stringify(v, null, 2)}</pre> : typeof v === 'boolean' ? (v ? 'はい' : 'いいえ') : String(v)}</dd>

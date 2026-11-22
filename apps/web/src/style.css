@@ -208,3 +208,4 @@ summary { cursor: pointer; font-weight: 600; }
   .login { padding: var(--space-5); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+.detail-card + .form-actions { margin-bottom: var(--space-6, 32px); }
