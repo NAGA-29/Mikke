@@ -3,6 +3,9 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
 
+import { ResourcePicker } from '../components/ResourcePicker';
+import { ProductPicker } from '../components/ProductPicker';
+
 type Field = { name: string; label: string; max?: number; required?: boolean; options?: string[]; kind?: 'attributes' | 'boolean'; hint?: string };
 // 入力項目の正本: apps/api/src/services/resources.ts の各 detail スキーマ。
 const fields: Record<ResourceType, Field[]> = {
@@ -14,7 +17,7 @@ const fields: Record<ResourceType, Field[]> = {
     { name: 'region', label: 'リージョン / DC', max: 100 },
     { name: 'os_name', label: 'OS名', max: 100 },
     { name: 'os_version', label: 'OSバージョン', max: 100 },
-    { name: 'os_software_product_id', label: 'OS製品ID', hint: 'ソフトウェア製品のUUID' },
+    { name: 'os_software_product_id', label: 'OS製品ID', hint: '製品名で検索して選択。指定なしで解除できます。' },
     { name: 'architecture', label: 'アーキテクチャ', max: 32 },
     { name: 'public_ip', label: '公開IP', hint: 'IPv4 / IPv6' },
     { name: 'private_ip', label: '内部IP', hint: 'IPv4 / IPv6' },
@@ -32,10 +35,10 @@ const fields: Record<ResourceType, Field[]> = {
     { name: 'service_kind', label: 'サービス種別', required: true, options: ['database', 'cache', 'queue', 'storage', 'hosting', 'other'] },
     { name: 'engine', label: 'エンジン', max: 100 },
     { name: 'engine_version', label: 'エンジンバージョン', max: 100 },
-    { name: 'software_product_id', label: 'ソフトウェア製品ID', hint: 'ソフトウェア製品のUUID' },
+    { name: 'software_product_id', label: 'ソフトウェア製品ID', hint: '製品名で検索して選択。指定なしで解除できます。' },
     { name: 'provider', label: 'プロバイダー', max: 100 },
     { name: 'is_managed', label: 'マネージドサービス', kind: 'boolean' },
-    { name: 'host_compute_id', label: 'ホストCompute ID', hint: 'アーカイブされていないコンピュート資産のUUID' },
+    { name: 'host_compute_id', label: 'ホストCompute ID', hint: 'アーカイブされていないコンピュートを名前で検索。指定なしで解除できます。' },
     { name: 'endpoint', label: 'エンドポイント', max: 1024 },
     { name: 'attributes', label: '属性（JSONオブジェクト）', kind: 'attributes' },
   ],
@@ -132,6 +135,10 @@ function Editor({ resource }: { resource: Resource | null }) {
       } else if (field.kind === 'boolean') detail[field.name] = data.has(field.name);
       else detail[field.name] = text(field.name) || (field.required ? '' : null);
     }
+    // 未変更の参照はPATCHから省く（既存のアーカイブ済みホストも維持する）。
+    if (resource) for (const key of ['host_compute_id', 'software_product_id', 'os_software_product_id']) {
+      if (key in detail && detail[key] === (resource.detail?.[key] ?? null)) delete detail[key];
+    }
     const body = {
       ...(!resource && { resource_type: type }),
       name: text('name'),
@@ -182,6 +189,9 @@ function Editor({ resource }: { resource: Resource | null }) {
         <legend>{RESOURCE_TYPE_LABEL[type]}の詳細</legend>
         {fields[type].map((field) => {
           const value = resource?.detail?.[field.name];
+          if (['host_compute_id', 'software_product_id', 'os_software_product_id'].includes(field.name)) {
+            return <ReferenceField key={field.name} name={field.name} label={field.label} hint={field.hint} initialValue={typeof value === 'string' ? value : ''} />;
+          }
           return <label key={field.name}>{field.label}{field.required && ' *'}
             {field.kind === 'boolean' ? <input type="checkbox" aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} defaultChecked={value === true} />
               : field.options ? <select aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} required={field.required} defaultValue={typeof value === 'string' ? value : ''}>
@@ -201,4 +211,15 @@ function Editor({ resource }: { resource: Resource | null }) {
       <p className="form-actions"><Button data-testid="form-submit" variant="primary" type="submit" disabled={saving}>{saving ? '保存中…' : resource ? '変更を保存' : '登録'}</Button><Link to={cancelPath}>キャンセル</Link></p>
     </form>
   </section>;
+}
+
+function ReferenceField({ name, label, hint, initialValue }: { name: string; label: string; hint?: string; initialValue: string }) {
+  const [value, setValue] = useState(initialValue);
+  return <div>
+    <input type="hidden" name={name} value={value} />
+    {name === 'host_compute_id'
+      ? <ResourcePicker label={label} types={['compute']} optional value={value} onChange={setValue} testId={name} descriptionId={hint ? `hint-${name}` : undefined} />
+      : <ProductPicker label={label} value={value} onChange={setValue} testId={name} descriptionId={hint ? `hint-${name}` : undefined} />}
+    {hint && <small id={`hint-${name}`}>{hint}</small>}
+  </div>;
 }

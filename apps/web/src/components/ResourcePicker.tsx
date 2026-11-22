@@ -1,10 +1,11 @@
 import { Button, ErrorState } from './ui';
 import { useEffect, useId, useState } from 'react';
+import { FormError } from './FormError';
 import { api, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
 
 const PAGE_SIZE = 50;
 
-export function ResourcePicker({ label, value, onChange, types, hostingOnly = false, excludeId, optional = false, currentLabel }: {
+export function ResourcePicker({ label, value, onChange, types, hostingOnly = false, excludeId, optional = false, currentLabel, testId, descriptionId }: {
   label: string;
   value: string;
   onChange: (id: string) => void;
@@ -13,6 +14,8 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
   excludeId?: string;
   optional?: boolean;
   currentLabel?: string;
+  testId?: string;
+  descriptionId?: string;
 }) {
   const id = useId();
   const [query, setQuery] = useState('');
@@ -21,6 +24,16 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Resource | null>(null);
+  const [lookupError, setLookupError] = useState<unknown>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    setSelected(null); setLookupError(null);
+    if (value && !currentLabel) api<Resource>(`/resources/${value}`, { signal: controller.signal })
+      .then((r) => { if (!controller.signal.aborted) setSelected(r); })
+      .catch((e: unknown) => { if (!controller.signal.aborted) setLookupError(e); });
+    return () => controller.abort();
+  }, [value, currentLabel]);
   const typeKey = types?.join(',') ?? '';
 
   useEffect(() => {
@@ -47,18 +60,19 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, offset, typeKey, hostingOnly, excludeId]);
 
-  return <div className="resource-picker">
+  return <div className="resource-picker" data-testid={testId}>
     <label htmlFor={`${id}-search`}>{label}：名前で検索</label>
-    <input id={`${id}-search`} type="search" maxLength={255} autoComplete="off" value={query}
+    <input id={`${id}-search`} aria-describedby={descriptionId} data-testid={testId ? `${testId}-search` : undefined} type="search" maxLength={255} autoComplete="off" value={query}
       onChange={(e) => { setQuery(e.target.value); setOffset(0); }} />
     <label htmlFor={`${id}-select`}>{label}{!optional && '（必須）'}</label>
-    <select id={`${id}-select`} value={value} required={!optional} onChange={(e) => onChange(e.target.value)}>
+    <select id={`${id}-select`} aria-describedby={descriptionId} data-testid={testId ? `${testId}-select` : undefined} value={value} required={!optional} onChange={(e) => onChange(e.target.value)}>
       <option value="">{optional ? '指定なし' : '選択してください'}</option>
-      {value && (loading || !items.some((r) => r.id === value)) && <option value={value}>{currentLabel ?? value}（選択中）</option>}
+      {value && (loading || !items.some((r) => r.id === value)) && <option value={value}>{currentLabel ?? (selected?.id === value ? selected.name : lookupError ? '名前を取得できません' : '名前を読み込み中…')}（選択中）</option>}
       {!loading && items.map((r) => <option key={r.id} value={r.id}>{r.name} / {RESOURCE_TYPE_LABEL[r.resource_type]} / {r.environment ?? '-'} / {r.id}</option>)}
     </select>
     {loading && <small role="status">検索中…</small>}
     {!loading && !items.length && !error && <small>このページに候補はありません。</small>}
+    <FormError error={lookupError} scope="mikke:read" />
     {error && <ErrorState>{error}</ErrorState>}
     <div className="form-actions">
       <Button type="button" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>前の候補</Button>

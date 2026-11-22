@@ -51,7 +51,7 @@ export function ResourceDetail() {
         currentId={typeof res.detail?.[res.resource_type === 'compute' ? 'os_release_cycle_id' : 'release_cycle_id'] === 'string'
           ? String(res.detail?.[res.resource_type === 'compute' ? 'os_release_cycle_id' : 'release_cycle_id']) : null}
         onSaved={() => setRevision((n) => n + 1)} />}
-      <ResourceReferences key={res.id} resource={res} />
+      <ResourceReferences key={res.id} resource={res} onChanged={() => setRevision((n) => n + 1)} />
       <ArchiveResource key={`${res.id}-${res.archived_at}`} resource={res} onSaved={() => setRevision((n) => n + 1)} />
     </section>
   );

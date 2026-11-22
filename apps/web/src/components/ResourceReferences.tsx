@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
 import { ReferenceEditor, type EditorSelection } from './ReferenceEditor';
+import { HostingEditor, type HostingSelection } from './HostingEditor';
 import type { Deployment, ResourceReferencesData } from './referenceTypes';
 
 function ReferenceTable<T>({ caption, items, headings, cells }: {
@@ -41,8 +42,8 @@ function DeleteReference({ path, label, onDeleted }: { path: string; label: stri
   </form>;
 }
 
-export function ResourceReferences({ resource, readOnly = false, onReadyChange }: {
-  resource: Resource; readOnly?: boolean; onReadyChange?: (ready: boolean) => void;
+export function ResourceReferences({ resource, readOnly = false, onReadyChange, onChanged }: {
+  resource: Resource; readOnly?: boolean; onReadyChange?: (ready: boolean) => void; onChanged?: () => void;
 }) {
   const [refs, setRefs] = useState<ResourceReferencesData | null>(null);
   const [names, setNames] = useState<Record<string, { name: string; archived_at: string | null }>>({ [resource.id]: resource });
@@ -52,6 +53,7 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
   const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
   const [editor, setEditor] = useState<EditorSelection | null>(null);
+  const [hosting, setHosting] = useState<HostingSelection | null>(null);
   const [notice, setNotice] = useState('');
   const reload = () => setRevision((n) => n + 1);
 
@@ -108,9 +110,9 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
       headings={['アプリケーション', '配置先', '使用Repo', '環境', '状態', '配置パス', '方法', 'リビジョン', 'デプロイ日時', '操作']}
       cells={(d) => [resourceLink(d.application_id), resourceLink(d.target_resource_id), resourceLink(d.repository_id), d.environment,
         <Badge status={d.status} />, d.deploy_path, d.deploy_method, d.revision, d.deployed_at,
-        !readOnly && <Button type="button" disabled={!!editor || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</Button>]} />;
+        !readOnly && <Button type="button" disabled={!!editor || !!hosting || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</Button>]} />;
   }
-  const canCreate = !readOnly && !resource.archived_at && !loading && !error && !editor;
+  const canCreate = !readOnly && !resource.archived_at && !loading && !error && !editor && !hosting;
   return <section aria-label="参照">
     <div className="page-heading"><h3>参照</h3><Button type="button" disabled={loading} onClick={reload}>再読み込み</Button></div>
     {notice && <p role="status">{notice}</p>}
@@ -119,13 +121,23 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
     {lookupFailed && <ErrorState>一部の名前を取得できませんでした。IDで表示しています。再読み込みで再試行できます。</ErrorState>}
     {editor && <ReferenceEditor key={editor.kind === 'deployment' ? `deployment-${editor.deployment?.id ?? 'new'}` : editor.kind === 'relation' ? `relation-${editor.direction}` : 'app-repo'}
       selection={editor} resource={resource} onSaved={saved} onCancel={() => setEditor(null)} />}
+    {hosting && <HostingEditor resource={resource} selection={hosting} onCancel={() => setHosting(null)} onSaved={() => {
+      setHosting(null); setNotice('ホスト先を更新しました。');
+      if (onChanged) onChanged(); else reload();
+    }} />}
     {refs && <>
       <h4>デプロイ</h4>
       <Button variant="primary" data-testid="create-deployment" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'deployment' })}>デプロイを登録</Button>
       {deploymentTable('アプリケーション側', refs.deployments_as_application)}
       {deploymentTable('配置先側', refs.deployments_as_target)}
       {deploymentTable('リポジトリ側', refs.deployments_as_repository)}
-      <ReferenceTable caption="ホストしているサービス" items={refs.hosted_services} headings={['サービス']} cells={(s) => [resourceLink(s.id)]} />
+      {resource.resource_type === 'compute' && !readOnly && !resource.archived_at && <Button type="button" data-testid="hosting-add-service" disabled={!canCreate}
+        onClick={() => setHosting({ kind: 'add-service' })}>サービスを追加</Button>}
+      <ReferenceTable caption="ホストしているサービス" items={refs.hosted_services} headings={['サービス', '操作']} cells={(s) => [resourceLink(s.id),
+        resource.resource_type === 'compute' && !readOnly && !resource.archived_at && !s.archived_at && <Button type="button" data-testid={`hosting-unset-${s.id}`} disabled={!canCreate}
+          onClick={() => setHosting({ kind: 'unset-service', serviceId: s.id, serviceName: s.name })}>ホスト先を解除</Button>]} />
+      {resource.resource_type === 'service_instance' && !readOnly && !resource.archived_at && <Button type="button" data-testid="hosting-edit" disabled={!canCreate}
+        onClick={() => setHosting({ kind: 'host', hostId: refs.host?.id ?? '', hostName: refs.host?.name })}>ホスト先を設定/変更/解除</Button>}
       <ReferenceTable caption="ホスト先" items={refs.host ? [refs.host] : []} headings={['コンピュート']} cells={(host) => [resourceLink(host.id)]} />
       <h4>依存関係</h4>
       <div className="form-actions">
