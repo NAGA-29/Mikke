@@ -50,3 +50,19 @@ button:disabled { cursor: default; }
   main { padding: 16px; }
   .filters { flex-wrap: wrap; }
 }
+
+.canvas-page { min-width: 0; }
+.canvas-surface { height: 62vh; min-height: 400px; width: 100%; border: 1px solid #cbd2d9; margin: 16px 0; }
+.canvas-surface .canvas-node { width: 200px; white-space: pre-line; overflow-wrap: anywhere; border-width: 2px; color: #1f2933; }
+.canvas-surface .canvas-node-compute { border-color: #1d4ed8; border-radius: 3px; }
+.canvas-surface .canvas-node-application { border-color: #047857; border-radius: 20px; }
+.canvas-surface .canvas-node-service_instance { border-color: #a21caf; border-radius: 10px; }
+.canvas-surface .canvas-node-repository { border-color: #b45309; border-style: dashed; }
+.canvas-surface .canvas-node-archived { opacity: .55; }
+.canvas-legend, .canvas-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.canvas-legend span { border-left: 5px solid; padding-left: 8px; }
+.canvas-actions > * { flex: 1 1 320px; min-width: 0; }
+.canvas-confirm { border: 1px solid #cbd2d9; padding: 16px; margin: 16px 0; overflow-wrap: anywhere; }
+.canvas-dialog { border: 1px solid #9aa5b1; border-radius: 6px; padding: 24px; max-width: min(760px, 95vw); max-height: 90vh; overflow: auto; overflow-wrap: anywhere; }
+.canvas-dialog::backdrop { background: rgb(31 41 51 / 45%); }
+.canvas-dialog .form-actions { flex-wrap: wrap; }

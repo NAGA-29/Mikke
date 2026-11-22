@@ -59,7 +59,7 @@
 
 ## Step 1 で未実装（後続）
 
-- Canvas UI（Step 3。Graph API・Diagram APIは下記のとおり実装済み）
+- Canvas UIはStep 3で実装済み（下記参照）。ブラウザーでの実操作確認は未実施。
 - MCP サーバー（Step 4）
 - `application.runtime_requirement` と系列の適合チェック（§12.1 将来）
 
@@ -84,3 +84,12 @@
 - §6 の正本操作の確認結果：relationはPOST/DELETE、app_repositoryはPOST/DELETE、hostingは `PATCH /resources/{service_id}` の `detail.host_compute_id`（NULLで解除）で対応済み。**不足していたdeploymentの関係削除を `DELETE /deployments/{id}` として追加**（§9のAPI列挙に対する追加、§6-7を満たすため）。deployment行FOR UPDATE → 削除・全図の非表示掃除・監査を同一TXで実行し、write権限で許可。既存PATCHによるinactive化も利用可能。既存制約（利用中のapp_repository削除拒否、アーカイブ済みサービスの編集には復元が必要）は維持する。
 - 孤児検査は `db/checks/orphan_diagram_hidden_edges.sql` をDB運用の定期ジョブから実行する想定。読み取り専用で4種類を検査し、hostingのホスト未設定も検出する。ジョブのスケジューリング自体は今回の範囲外。
 - `pnpm typecheck` 通過。`pnpm test` は実DB接続が `EPERM`（localhost:5432）でglobal setupに失敗し、追加9件を含むテスト本体は未実行。既存マイグレーション・依存パッケージ・Webは変更していない。
+
+
+## Step 3 Canvas UI（2026-11-22）
+
+- §5・§6の正本ルールの変更はない。`apps/web` のReact Flow UIはGraphの4種のエッジを色・ラベルで区別し、同じ両端の複数エッジは曲線を分けて選択可能にする。接続ダイアログからrelation / deployment / hosting / app_repositoryの既存APIを呼ぶ。線はAPI成功後のGraph再取得で確定する。接続種別は資産型から初期候補を示すだけで、全種別を選択可能とし、不正な組合せ・重複・権限エラーはHTTPステータス・code・messageをそのまま表示する（任意のdetailsや資産レコード全体は表示・ログ出力しない）。デプロイでは環境・状態・使用Repoを入力し、その他の任意項目は既存の資産詳細から編集できる。
+- ノードの追加・除去は配置のみ。位置はドラッグ後500msでPATCHし、バッチを直列化する。失敗は表示して再試行可能。画面遷移時も保存待ちの移動を送信するが、タブ終了時の配送保証はない。ズーム・ミニマップ・fitを備え、表示範囲は明示的な保存ボタンでdiagram.viewportへ保存する。Canvasは遅延ロードする。
+- 正本削除前は一覧を全ページ取得し、各図のGraphを最大5並列で読み、両端が配置されている図（表示中／非表示または変更済み）を影響候補として表示する。app_repositoryの場合は同じアプリ・Repoを参照するデプロイ件数も表示する。全図・MCPへの反映と非表示設定の掃除を明示し、確認チェック後に実行する。影響取得が失敗した場合は削除不可とする。図内非表示・再表示は別操作。
+- 既存APIには原子的な影響確認・削除やhosting解除の比較条件付きPATCHはない。影響は取得時点の候補であり、確認後の並行変更を固定しない。hosting解除直前には現在のhost_compute_idを再取得し、変わっていれば409相当で中止するが、取得からPATCHまでの競合は§6-8の将来の楽観ロック課題として残る。APIは変更していない。
+- 認証は既存のAPIクライアントを利用し、新しいトークン保存先やログ出力を追加しない。追加依存なし（作業開始時に導入済みの `@xyflow/react@12.12.1` を使用）。`pnpm typecheck`・Webビルドと純粋関数のスモーク確認は通過。開発サーバーの `listen EPERM` によりブラウザー実操作・実API連携は未検証。

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { clearToken, getToken, setToken } from './api';
 import { ResourceList } from './pages/ResourceList';
@@ -10,6 +10,9 @@ import { ReleaseCycles } from './pages/ReleaseCycles';
 import { EolDashboard } from './pages/EolDashboard';
 import { EolChangeRequests } from './pages/EolChangeRequests';
 import { AuditLogs } from './pages/AuditLogs';
+import { Diagrams } from './pages/Diagrams';
+
+const DiagramCanvas = lazy(() => import('./pages/DiagramCanvas').then((m) => ({ default: m.DiagramCanvas })));
 
 export function App() {
   const [token, setTok] = useState(getToken());
@@ -20,6 +23,7 @@ export function App() {
         <h1>Mikke</h1>
         <nav>
           <Link to="/resources">資産</Link>
+          <Link to="/diagrams">構成図</Link>
           <Link to="/software/products">ソフトウェア製品</Link>
           <Link to="/software/installations">ソフトウェア導入</Link>
           <Link to="/software/release-cycles">系列・イベント</Link>
@@ -42,6 +46,8 @@ export function App() {
           <Route path="/eol" element={<EolDashboard />} />
           <Route path="/software/lifecycle-event-change-requests" element={<EolChangeRequests />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/diagrams" element={<Diagrams />} />
+          <Route path="/diagrams/:id" element={<Suspense fallback={<p role="status">Canvasを読み込み中…</p>}><DiagramCanvas /></Suspense>} />
         </Routes>
       </main>
     </div>

@@ -1,6 +1,6 @@
 # Mikke TODO
 
-最終更新: 2026-11-22（Step 3 Graph / Diagram API実装、Canvasは未着手）
+最終更新: 2026-11-22（Step 3 Canvas UI実装、ブラウザー検証は未実施）
 実装順序は設計書 §10 に従う。完了したらチェックを付け、日付と PR を書き添える。
 
 ## 現在の状態
@@ -38,8 +38,10 @@
 - [x] Diagram API：`diagrams` / `diagram_nodes` / `diagram_hidden_edges` の CRUD（2026-11-22、PR未作成。write権限、監査、正本ロック付き非表示設定）
 - [x] `GET /graph?diagram_id=`（2026-11-22、PR未作成）— 配置ノードと、正本から組み立てたエッジ（relation / deployment / hosting / app_repository）を返す。Graph 用に二重保存しない
 - [x] API表示ルール：両端が図にあるエッジだけ。非表示指定を除外。アーカイブ済みノードに `archived` フラグ（2026-11-22、PR未作成）
-- [ ] Canvas表示：アーカイブ済みノードは淡色＋警告
-- [ ] Canvas（React Flow）：接続の種類に応じて正本を更新する（§6 の 1〜7）
+- [x] Canvas表示：アーカイブ済みノードは淡色＋警告（2026-11-22、PR未作成）
+- [x] Canvas（React Flow）：接続の種類に応じて正本を更新する（§6 の 1〜7）（2026-11-22、PR未作成）
+  - `/diagrams` の一覧・作成・改名・削除、`/diagrams/:id` の配置・移動・除去、4種の色／ラベル、接続登録ダイアログ、図単位の非表示・再表示、正本削除の影響候補取得・確認。ズーム・ミニマップ・fit・表示範囲保存。変換・更新先選択・影響抽出は `apps/web/src/lib/graph.ts` の純粋関数。
+  - `pnpm typecheck` / `pnpm --filter @mikke/web build` 通過。純粋関数のスモーク確認通過。開発サーバーは `listen EPERM`（127.0.0.1:5173）により起動できず、ブラウザー実操作・実API連携は未検証。API・DB・依存パッケージの追加変更なし。
 - [x] 正本削除時の `diagram_hidden_edges` 掃除と孤児検査 SQL（`db/checks/orphan_diagram_hidden_edges.sql`、hosting解除も検出。2026-11-22、PR未作成）
   - §6 の正本操作を確認し、不足していた `DELETE /deployments/{id}` を追加（write権限、監査・非表示掃除は同一TX）。
   - 統合テスト9件追加。`pnpm typecheck` 通過。`pnpm test` はDB接続が `EPERM`（localhost:5432）となりglobal setupで停止、テスト本体は未実行。
