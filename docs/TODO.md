@@ -5,7 +5,7 @@
 
 ## 現在の状態
 
-- [x] **Step 1: DB + REST API + テスト**（[PR #1](https://github.com/NAGA-29/Mikke/pull/1)）
+- [x] **Step 1: DB + REST API + テスト**（PR #1）
   - 18テーブル（設計の17 + EOL日付変更の承認待ちキュー）、PostgreSQL 18
   - 資産・関係・デプロイ・ソフトウェア・EOL・監査ログの REST API、スコープ付きトークン認証
   - 統合テスト35件（実DB）。§10 の受け入れ基準のうち API で確認できるものは網羅
@@ -63,7 +63,7 @@
   - 2026-11-22、PR未作成。stdio起動・15ツール・共通認証・スコープ・同一TX監査・承認待ち・楽観ロックを実装。READMEに起動とクライアント設定を記載。
   - SDK Client/InMemoryTransport統合テスト7件を追加。`pnpm typecheck` 通過。DBなしのSDKスモーク（ツール列挙・権限不足・actor_id拒否）通過。`pnpm test` はDB接続がEPERMでglobal setup停止、テスト本体は **NOT RUN**。調査フロー完了確認は実DB環境で残作業。
 
-### Step 5: DADADA・SHIORI との横断検証
+### Step 5: 脆弱性管理基盤・別の連携システムとの横断検証
 別マイルストーン。着手前に連携の範囲をユーザーに確認する。
 
 ## 未決事項（ユーザーの判断が必要）
