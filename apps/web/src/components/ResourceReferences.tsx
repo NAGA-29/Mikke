@@ -1,4 +1,4 @@
-import { Badge, Button, DataTable, EmptyState, LoadingState, ErrorState } from './ui';
+import { Badge, Button, DataTable, EmptyState, LoadingState, ErrorState, Time } from './ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type Resource } from '../api';
@@ -109,7 +109,7 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange, 
     return <ReferenceTable caption={caption} items={rows}
       headings={['アプリケーション', '配置先', '使用Repo', '環境', '状態', '配置パス', '方法', 'リビジョン', 'デプロイ日時', '操作']}
       cells={(d) => [resourceLink(d.application_id), resourceLink(d.target_resource_id), resourceLink(d.repository_id), d.environment,
-        <Badge status={d.status} />, d.deploy_path, d.deploy_method, d.revision, d.deployed_at,
+        <Badge status={d.status} />, d.deploy_path, d.deploy_method, d.revision, <Time key="deployed" value={d.deployed_at} />,
         !readOnly && <Button type="button" disabled={!!editor || !!hosting || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</Button>]} />;
   }
   const canCreate = !readOnly && !resource.archived_at && !loading && !error && !editor && !hosting;
@@ -156,7 +156,7 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange, 
       <ReferenceTable caption="ソフトウェア導入" items={refs.software_installations}
         headings={['コンピュート', '製品', 'バージョン', 'リリース系列', '導入方法', '導入パス', '設定パス', '最終確認']}
         cells={(i) => [resourceLink(i.compute_asset_id), installations[i.id]?.product_name ?? i.software_product_id, i.version,
-          installations[i.id]?.release_cycle ?? i.release_cycle_id, i.install_method, i.install_path, i.config_path, i.last_verified_at]} />
+          installations[i.id]?.release_cycle ?? i.release_cycle_id, i.install_method, i.install_path, i.config_path, <Time key="verified" value={i.last_verified_at} />]} />
       <ReferenceTable caption="図への配置" items={refs.diagram_ids} headings={['図']} cells={(id) => [<Link key={id} to={`/diagrams/${id}`}>{id}</Link>]} />
     </>}
   </section>;

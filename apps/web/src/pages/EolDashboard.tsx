@@ -1,4 +1,4 @@
-import { Badge, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Badge, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FormError } from '../components/FormError';
 import { ResourcePicker } from '../components/ResourcePicker';
@@ -56,7 +56,7 @@ export function EolDashboard() {
           <td>{i.product?.name ?? '製品不明'} / {i.version ?? '版不明'} / {i.release_cycle?.cycle ?? '系列未割当'}</td>
           <td><Badge status={i.status} />{i.reason && <p>{REASONS[i.reason] ?? '要確認'}</p>}</td>
           <td className="numeric">{i.end_date ?? '不明'} / {i.end_basis ?? '-'}{i.days_remaining !== null && <p>残り {i.days_remaining} 日</p>}</td>
-          <td>{i.checked_at ?? '-'}</td><td>{i.stale && <Badge>stale</Badge>}{i.needs_verification && <Badge>要確認: {i.release_cycle?.verification_status}</Badge>}{i.cycle_mismatch && <Badge>版不一致</Badge>}</td>
+          <td><Time value={i.checked_at} /></td><td>{i.stale && <Badge>stale</Badge>}{i.needs_verification && <Badge>要確認: {i.release_cycle?.verification_status}</Badge>}{i.cycle_mismatch && <Badge>版不一致</Badge>}</td>
           <td>{i.product && <Link to={`/software/release-cycles?software_product_id=${i.product.id}`}>系列・根拠を編集</Link>}<br />
             {i.target_kind === 'installation' ? <Link to={`/software/installations?compute_asset_id=${i.resource.id}`}>導入・割当</Link> : <Link to={`/resources/${i.resource.id}`}>系列割当</Link>}</td>
         </tr>)}{!items.length && <tr><td colSpan={7}><EmptyState>該当なし</EmptyState></td></tr>}

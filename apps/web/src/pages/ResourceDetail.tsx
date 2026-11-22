@@ -1,4 +1,4 @@
-import { Badge, ErrorState, LoadingState, PageHeader } from '../components/ui';
+import { Badge, ErrorState, LoadingState, PageHeader, Time } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource } from '../api';
@@ -34,7 +34,7 @@ export function ResourceDetail() {
         <dt>環境</dt><dd>{res.environment ?? '-'}</dd>
         <dt>状態</dt><dd><Badge status={res.lifecycle_status} /></dd>
         <dt>説明</dt><dd>{res.description ?? '-'}</dd>
-        <dt>最終確認</dt><dd>{res.last_verified_at ?? '-'}</dd>
+        <dt>最終確認</dt><dd><Time value={res.last_verified_at} /></dd>
       </dl>
       <h3>種別ごとの詳細</h3>
       <DetailList detail={res.detail} />

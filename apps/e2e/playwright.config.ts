@@ -11,6 +11,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : [['list']],
   use: {
     baseURL: `http://localhost:${WEB_PORT}`,
+    // 日時表示の検証を環境に依存させない（既定は日本時間。テスト側で上書き可）
+    locale: 'ja-JP',
+    timezoneId: 'Asia/Tokyo',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },

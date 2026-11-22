@@ -1,3 +1,4 @@
+import { formatDateTime } from '../../lib/datetime';
 import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
 
 export function Button({ variant = 'secondary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -34,4 +35,10 @@ export function DataTable({ children, 'aria-label': label, ...props }: TableHTML
   return <div className="data-table-scroll" role="region" aria-label={label ?? 'データ一覧'} tabIndex={0}>
     <table data-testid="list-table" aria-label={label} {...props} id={props.id ?? id}>{children}</table>
   </div>;
+}
+
+/** 日時をブラウザのタイムゾーンで表示する。ホバーで元の値（ISO 8601）を確認できる */
+export function Time({ value }: { value: string | null | undefined }) {
+  if (!value) return <>-</>;
+  return <time dateTime={value} title={value}>{formatDateTime(value)}</time>;
 }

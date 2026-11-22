@@ -1,4 +1,4 @@
-import { Badge, DataTable, EmptyState, ErrorState, LoadingState, PageHeader } from '../components/ui';
+import { Badge, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, Time } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
@@ -55,7 +55,7 @@ export function ResourceList() {
                 <td>{RESOURCE_TYPE_LABEL[r.resource_type]}</td>
                 <td>{r.environment ?? '-'}</td>
                 <td><Badge status={r.archived_at ? 'archived' : r.lifecycle_status} /></td>
-                <td>{r.updated_at.slice(0, 10)}</td>
+                <td><Time value={r.updated_at} /></td>
               </tr>
             ))}
             {items.length === 0 && <tr><td colSpan={5}><EmptyState>該当なし</EmptyState></td></tr>}

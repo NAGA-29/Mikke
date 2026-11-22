@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { FormError } from '../components/FormError';
@@ -26,7 +26,7 @@ export function AuditLogs() {
     <FormError error={error} scope="mikke:read" />{!data && !error && <LoadingState />}
     {data && <><p>{data.length}件{data.length === Number(sp.get('limit') ?? 100) && '（上限に達しています。対象や主体で絞り込んでください）'}</p>
       <div className="reference-table"><DataTable aria-label="監査ログ一覧"><thead><tr><th scope="col">日時</th><th scope="col">実行主体</th><th scope="col">操作</th><th scope="col">対象種別</th><th scope="col">対象ID</th><th scope="col">監査ID</th></tr></thead><tbody>
-        {data.map((r) => <tr key={r.id}><td>{r.created_at}</td><td>{r.actor_id}</td><td>{r.action}</td><td>{r.entity_type}</td><td>{r.entity_id}</td><td>{r.id}</td></tr>)}
+        {data.map((r) => <tr key={r.id}><td><Time value={r.created_at} /></td><td>{r.actor_id}</td><td>{r.action}</td><td>{r.entity_type}</td><td>{r.entity_id}</td><td>{r.id}</td></tr>)}
         {!data.length && <tr><td colSpan={6}><EmptyState>該当なし</EmptyState></td></tr>}
       </tbody></DataTable></div>
     </>}

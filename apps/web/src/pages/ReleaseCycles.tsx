@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -31,11 +31,11 @@ export function ReleaseCycles() {
     {data?.map((c) => <section key={c.id} className="cycle-card">
       <div className="page-heading"><h3>{c.product_name} / {c.cycle}</h3><Button onClick={() => setEditor({ kind: 'cycle', cycle: c })}>系列を編集</Button></div>
       <p>照合規則: {c.match_pattern ?? c.cycle} / 確認状態: {c.verification_status} / 稼働中の割当: {c.in_service_assignments}</p>
-      <p>確認日時: {c.verified_at ?? '-'} / 確認者: {c.verified_by ?? '-'}</p>{c.notes && <p className="preserve-lines">{c.notes}</p>}
+      <p>確認日時: <Time value={c.verified_at} /> / 確認者: {c.verified_by ?? '-'}</p>{c.notes && <p className="preserve-lines">{c.notes}</p>}
       <Button variant="primary" data-testid="create-event" onClick={() => setEditor({ kind: 'event', cycle: c, event: null })}>イベントを登録</Button>
       <div className="reference-table"><DataTable aria-label="ライフサイクルイベント一覧"><thead><tr><th scope="col">種別</th><th scope="col">日付</th><th scope="col">根拠</th><th scope="col">確認日時</th><th scope="col">メモ</th><th scope="col">操作</th></tr></thead><tbody>
         {c.events.map((ev) => <tr key={ev.id}><td>{ev.event_type}</td><td>{ev.event_date}</td><td>{ev.source_title ?? '-'}<br /><span className="source-text">{displaySourceUrl(ev.source_url)}</span></td>
-          <td>{ev.checked_at}</td><td className="preserve-lines">{ev.notes ?? '-'}</td><td><Button onClick={() => setEditor({ kind: 'event', cycle: c, event: ev })}>イベントを編集</Button></td></tr>)}
+          <td><Time value={ev.checked_at} /></td><td className="preserve-lines">{ev.notes ?? '-'}</td><td><Button onClick={() => setEditor({ kind: 'event', cycle: c, event: ev })}>イベントを編集</Button></td></tr>)}
         {!c.events.length && <tr><td colSpan={6}><EmptyState>イベントなし（終了日不明）</EmptyState></td></tr>}
       </tbody></DataTable></div>
     </section>)}{data?.length === 0 && <EmptyState />}

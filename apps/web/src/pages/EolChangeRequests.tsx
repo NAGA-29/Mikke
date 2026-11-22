@@ -1,5 +1,5 @@
-import { Badge, Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
-import { useState } from 'react';
+import { Badge, Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
 import { FormError } from '../components/FormError';
@@ -32,10 +32,10 @@ export function EolChangeRequests() {
       onCancel={() => setSelected(null)} onSaved={() => { setNotice('決裁しました。'); setSelected(null); setRevision((v) => v + 1); }} />}
     {!data && !error && <LoadingState />}
     {data?.map((r) => <section key={r.id} className="cycle-card"><h3>{r.product_name} / {r.cycle} / {r.event_type}</h3>
-      <p>状態: <Badge status={r.status} /> / 依頼者: {r.requested_by} / 依頼日時: {r.created_at}</p>
+      <p>状態: <Badge status={r.status} /> / 依頼者: {r.requested_by} / 依頼日時: <Time value={r.created_at} /></p>
       <p>イベントID: {r.lifecycle_event_id}</p><p className="preserve-lines">変更理由: {r.request_note ?? '-'}</p>
       <RequestDiff request={r} />
-      <p>決裁者: {r.decided_by ?? '-'} / 決裁日時: {r.decided_at ?? '-'}</p><p className="preserve-lines">決裁メモ: {r.decision_note ?? '-'}</p>
+      <p>決裁者: {r.decided_by ?? '-'} / 決裁日時: <Time value={r.decided_at} /></p><p className="preserve-lines">決裁メモ: {r.decision_note ?? '-'}</p>
       <div className="form-actions"><Link to="/software/release-cycles">サポート期限を確認</Link>
         {r.status === 'pending' && <><Button disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'approve' })}>承認</Button>
           <Button variant="danger" disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'reject' })}>却下</Button></>}
@@ -44,11 +44,18 @@ export function EolChangeRequests() {
   </section>;
 }
 
+/** 差分表の値。確認日時はブラウザのタイムゾーンで表示し、URL は既存の表示規則に従う */
+function cell(key: string, value: unknown): ReactNode {
+  if (key === 'source_url') return displaySourceUrl(value as never);
+  if (key === 'checked_at') return <Time value={value as string | null} />;
+  return (value as ReactNode) ?? '-';
+}
+
 function RequestDiff({ request: r }: { request: RequestItem }) {
   return <div className="reference-table"><DataTable aria-label="日付変更の比較"><thead><tr><th scope="col">項目</th><th scope="col">変更前（依頼時点）</th><th scope="col">提案</th></tr></thead><tbody>
     {Object.entries(DIFF_FIELDS).map(([key, label]) => <tr key={key}><th scope="row">{label}{r.before_data[key] !== r.proposed_data[key] && '（変更）'}</th>
-      <td className="preserve-lines">{key === 'source_url' ? displaySourceUrl(r.before_data[key]) : r.before_data[key] ?? '-'}</td>
-      <td className="preserve-lines">{key === 'source_url' ? displaySourceUrl(r.proposed_data[key]) : r.proposed_data[key] ?? '-'}</td></tr>)}
+      <td className="preserve-lines">{cell(key, r.before_data[key])}</td>
+      <td className="preserve-lines">{cell(key, r.proposed_data[key])}</td></tr>)}
   </tbody></DataTable></div>;
 }
 

@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -42,7 +42,7 @@ export function SoftwareInstallations() {
       {data.map((i) => <tr key={i.id} className={i.compute_archived ? 'archived' : ''}>
         <td><Link to={`/resources/${i.compute_asset_id}`}>{i.compute_name}</Link>{i.compute_archived && '（アーカイブ）'}</td>
         <td>{i.product_name}</td><td>{i.version ?? '-'}</td><td><Link to={`/software/release-cycles?software_product_id=${i.software_product_id}`}>{i.release_cycle ?? '未割当'}</Link></td>
-        <td>{i.install_method ?? '-'} / {i.install_path ?? '-'}</td><td>{i.config_path ?? '-'}</td><td>{i.last_verified_at ?? '-'}</td><td>
+        <td>{i.install_method ?? '-'} / {i.install_path ?? '-'}</td><td>{i.config_path ?? '-'}</td><td><Time value={i.last_verified_at} /></td><td>
           <Button disabled={i.compute_archived} onClick={() => { setEditing(i); setAssigning(null); }}>編集</Button>{' '}
           <Button disabled={i.compute_archived} onClick={() => { setAssigning(i); setEditing(null); }}>系列割当</Button>
         </td></tr>)}{!data.length && <tr><td colSpan={8}><EmptyState>該当なし</EmptyState></td></tr>}
