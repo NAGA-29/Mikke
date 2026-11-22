@@ -4,6 +4,15 @@ body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1f2933; }
 .sidebar { background: #1f2933; color: #fff; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .sidebar h1 { font-size: 18px; margin: 0; }
 .sidebar a { color: #fff; text-decoration: none; }
+.sidebar nav { display: grid; gap: 12px; }
+.filters { flex-wrap: wrap; }
+.filters label { display: flex; flex-direction: column; gap: 4px; }
+.cycle-card { border-top: 1px solid #cbd2d9; margin-top: 24px; padding-top: 8px; }
+.preserve-lines { white-space: pre-wrap; overflow-wrap: anywhere; }
+.source-text { overflow-wrap: anywhere; }
+.summary { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; }
+.summary > div { background: #f5f7fa; border: 1px solid #cbd2d9; padding: 12px 20px; }
+.summary strong { display: block; font-size: 24px; }
 main { padding: 24px; overflow-x: auto; }
 .filters { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; }
 input, select, button { font: inherit; padding: 4px 8px; }

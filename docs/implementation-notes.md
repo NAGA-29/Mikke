@@ -61,5 +61,13 @@
 
 - Graph API・Diagram API（Step 3: Canvas）
 - MCP サーバー（Step 4）
-- Web UI（Step 2）
 - `application.runtime_requirement` と系列の適合チェック（§12.1 将来）
+
+## Step 2 ソフトウェア・EOL・管理 UI（2026-11-22）
+
+- API・DB・依存パッケージの変更はない。入力項目は `services/software.ts` のスキーマに合わせ、系列・イベントの PUT は取得した `updated_at` 文字列を変換せず `expected_updated_at` に送る。日付変更の `pending_approval`（HTTP 202）は即時反映と区別して表示する。
+- スコープ・現在の `actor_id` を返すAPIはないため、承認・管理者操作の表示は権限推測で制御しない。APIの403を案内する。承認／却下前に依頼者と差分を表示し、本人でないことを確認させ、`self_approval` には専用案内を表示する。最終的な権限・自己決裁の防止は既存APIが担う。
+- EOLの「期限接近」はAPIの `approaching_eol`。「要確認」は `needs_verification` または `cycle_mismatch`。状態別件数・stale・要確認件数は現在のフィルタに一致する対象単位で数え、同じ資産のOSと導入ソフトは別件と明示する。期限や判定自体はWebで再計算しない。
+- アーカイブ／復元の確認時には既存の参照一覧コンポーネントを読み取り専用で再利用する。最新の `/resources/{id}/references` の取得成功までは確認・実行を無効化し、再取得した場合は確認チェックをリセットする。
+- 監査ログ画面は日時・主体・操作・対象と監査IDを表示し、任意の `before_data` / `after_data` は描画しない。根拠URLは認証情報・認証クエリらしい入力を消去して送信せず、既存データの表示時も隠す。なお、既存APIの `source_url` 用 `httpUrl` は userinfo を拒否するが認証クエリまでは拒否しないため、Web以外の入力経路への対応は別途必要。
+- `pnpm typecheck` と `pnpm --filter @mikke/web build` を確認。開発サーバーが `listen EPERM` で起動できず、ブラウザーでの実操作・実API連携確認は未実施。

@@ -4,6 +4,12 @@ import { clearToken, getToken, setToken } from './api';
 import { ResourceList } from './pages/ResourceList';
 import { ResourceDetail } from './pages/ResourceDetail';
 import { ResourceForm } from './pages/ResourceForm';
+import { SoftwareProducts } from './pages/SoftwareProducts';
+import { SoftwareInstallations } from './pages/SoftwareInstallations';
+import { ReleaseCycles } from './pages/ReleaseCycles';
+import { EolDashboard } from './pages/EolDashboard';
+import { EolChangeRequests } from './pages/EolChangeRequests';
+import { AuditLogs } from './pages/AuditLogs';
 
 export function App() {
   const [token, setTok] = useState(getToken());
@@ -14,6 +20,12 @@ export function App() {
         <h1>Mikke</h1>
         <nav>
           <Link to="/resources">資産</Link>
+          <Link to="/software/products">ソフトウェア製品</Link>
+          <Link to="/software/installations">ソフトウェア導入</Link>
+          <Link to="/software/release-cycles">系列・イベント</Link>
+          <Link to="/eol">EOL ダッシュボード</Link>
+          <Link to="/software/lifecycle-event-change-requests">EOL 承認キュー</Link>
+          <Link to="/audit-logs">監査ログ</Link>
         </nav>
         <button className="link" onClick={() => { clearToken(); setTok(null); }}>ログアウト</button>
       </aside>
@@ -24,6 +36,12 @@ export function App() {
           <Route path="/resources/new" element={<ResourceForm key="new" />} />
           <Route path="/resources/:id/edit" element={<ResourceForm />} />
           <Route path="/resources/:id" element={<ResourceDetail />} />
+          <Route path="/software/products" element={<SoftwareProducts />} />
+          <Route path="/software/installations" element={<SoftwareInstallations />} />
+          <Route path="/software/release-cycles" element={<ReleaseCycles />} />
+          <Route path="/eol" element={<EolDashboard />} />
+          <Route path="/software/lifecycle-event-change-requests" element={<EolChangeRequests />} />
+          <Route path="/audit-logs" element={<AuditLogs />} />
         </Routes>
       </main>
     </div>

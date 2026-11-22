@@ -40,7 +40,9 @@ function DeleteReference({ path, label, onDeleted }: { path: string; label: stri
   </form>;
 }
 
-export function ResourceReferences({ resource }: { resource: Resource }) {
+export function ResourceReferences({ resource, readOnly = false, onReadyChange }: {
+  resource: Resource; readOnly?: boolean; onReadyChange?: (ready: boolean) => void;
+}) {
   const [refs, setRefs] = useState<ResourceReferencesData | null>(null);
   const [names, setNames] = useState<Record<string, { name: string; archived_at: string | null }>>({ [resource.id]: resource });
   const [installations, setInstallations] = useState<Record<string, { product_name: string; release_cycle: string | null }>>({});
@@ -55,12 +57,14 @@ export function ResourceReferences({ resource }: { resource: Resource }) {
   useEffect(() => {
     let live = true;
     setLoading(true);
+    onReadyChange?.(false);
     setError(null);
     setLookupFailed(false);
     api<ResourceReferencesData>(`/resources/${resource.id}/references`).then(async (data) => {
       if (!live) return;
       setRefs(data);
       setLoading(false);
+      onReadyChange?.(true);
       const known = Object.fromEntries([resource, ...data.hosted_services, ...(data.host ? [data.host] : [])].map((r) => [r.id, r]));
       setNames(known);
       const deployments = [...data.deployments_as_application, ...data.deployments_as_target, ...data.deployments_as_repository];
@@ -79,7 +83,7 @@ export function ResourceReferences({ resource }: { resource: Resource }) {
       if (lookups.some((result) => result.status === 'rejected')) setLookupFailed(true);
     }).catch((e: unknown) => { if (live) { setError(e); setLoading(false); } });
     return () => { live = false; };
-  }, [resource, revision]);
+  }, [resource, revision, onReadyChange]);
 
   useEffect(() => {
     let live = true;
@@ -103,9 +107,9 @@ export function ResourceReferences({ resource }: { resource: Resource }) {
       headings={['アプリケーション', '配置先', '使用Repo', '環境', '状態', '配置パス', '方法', 'リビジョン', 'デプロイ日時', '操作']}
       cells={(d) => [resourceLink(d.application_id), resourceLink(d.target_resource_id), resourceLink(d.repository_id), d.environment,
         d.status, d.deploy_path, d.deploy_method, d.revision, d.deployed_at,
-        <button type="button" disabled={!!editor || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</button>]} />;
+        !readOnly && <button type="button" disabled={!!editor || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</button>]} />;
   }
-  const canCreate = !resource.archived_at && !loading && !error && !editor;
+  const canCreate = !readOnly && !resource.archived_at && !loading && !error && !editor;
   return <section aria-label="参照">
     <div className="page-heading"><h3>参照</h3><button type="button" disabled={loading} onClick={reload}>再読み込み</button></div>
     {notice && <p role="status">{notice}</p>}
@@ -130,12 +134,12 @@ export function ResourceReferences({ resource }: { resource: Resource }) {
       {(['out', 'in'] as const).map((direction) => <ReferenceTable key={direction} caption={direction === 'out' ? '出方向（関係元 → 関係先）' : '入方向（関係元 → 関係先）'}
         items={direction === 'out' ? refs.relations_out : refs.relations_in} headings={['関係元', '種別', '関係先', '説明', '操作']}
         cells={(r) => [resourceLink(r.source_resource_id), r.relation_type, resourceLink(r.target_resource_id), r.description,
-          <DeleteReference key={r.id} path={`/relations/${r.id}`} label="依存関係" onDeleted={deleted} />]} />)}
+          !readOnly && <DeleteReference key={r.id} path={`/relations/${r.id}`} label="依存関係" onDeleted={deleted} />]} />)}
       <h4>アプリケーション↔リポジトリ</h4>
       {['application', 'repository'].includes(resource.resource_type) && <button type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'app-repo' })}>リンクを登録</button>}
       <ReferenceTable caption="アプリケーション↔リポジトリのリンク" items={refs.application_repositories} headings={['アプリケーション', 'リポジトリ', '用途', '操作']}
         cells={(r) => [resourceLink(r.application_id), resourceLink(r.repository_id), r.purpose,
-          <DeleteReference key={r.id} path={`/application-repositories/${r.id}`} label="アプリ↔Repoリンク" onDeleted={deleted} />]} />
+          !readOnly && <DeleteReference key={r.id} path={`/application-repositories/${r.id}`} label="アプリ↔Repoリンク" onDeleted={deleted} />]} />
       <ReferenceTable caption="ソフトウェア導入" items={refs.software_installations}
         headings={['コンピュート', '製品', 'バージョン', 'リリース系列', '導入方法', '導入パス', '設定パス', '最終確認']}
         cells={(i) => [resourceLink(i.compute_asset_id), installations[i.id]?.product_name ?? i.software_product_id, i.version,

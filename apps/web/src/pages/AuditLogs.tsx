@@ -1,0 +1,33 @@
+import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { FormError } from '../components/FormError';
+import { TextField, useApiData } from '../components/SoftwareFields';
+
+interface AuditEntry { id: string; created_at: string; actor_id: string; action: string; entity_type: string; entity_id: string }
+
+export function AuditLogs() {
+  const [sp, setSp] = useSearchParams();
+  const [revision, setRevision] = useState(0);
+  // Only metadata is rendered; arbitrary before_data / after_data is never printed.
+  const { data, error } = useApiData<AuditEntry[]>(`/audit-logs?${sp}`, revision);
+  const [fields, setFields] = useState({ entity_type: sp.get('entity_type') ?? '', entity_id: sp.get('entity_id') ?? '',
+    actor_id: sp.get('actor_id') ?? '', limit: sp.get('limit') ?? '100' });
+  return <section><h2>監査ログ</h2><p>実行日時・主体・操作・対象を表示します。変更前後の任意データは表示しません。新しい順で最大500件まで取得できます。</p>
+    <form className="filters" onSubmit={(e) => {
+      e.preventDefault(); setSp(Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== ''))); setRevision((n) => n + 1);
+    }}>
+      <TextField label="対象種別（例: resource）" maxLength={100} value={fields.entity_type} onChange={(v) => setFields({ ...fields, entity_type: v })} />
+      <TextField label="対象ID（UUID）" maxLength={36} value={fields.entity_id} onChange={(v) => setFields({ ...fields, entity_id: v })} />
+      <TextField label="実行主体" value={fields.actor_id} onChange={(v) => setFields({ ...fields, actor_id: v })} />
+      <label>取得件数<input type="number" min={1} max={500} required value={fields.limit} onChange={(e) => setFields({ ...fields, limit: e.target.value })} /></label>
+      <button>検索・再読み込み</button>
+    </form>
+    <FormError error={error} scope="mikke:read" />{!data && !error && <p>読み込み中…</p>}
+    {data && <><p>{data.length}件{data.length === Number(sp.get('limit') ?? 100) && '（上限に達しています。対象や主体で絞り込んでください）'}</p>
+      <div className="reference-table"><table><thead><tr><th>日時</th><th>実行主体</th><th>操作</th><th>対象種別</th><th>対象ID</th><th>監査ID</th></tr></thead><tbody>
+        {data.map((r) => <tr key={r.id}><td>{r.created_at}</td><td>{r.actor_id}</td><td>{r.action}</td><td>{r.entity_type}</td><td>{r.entity_id}</td><td>{r.id}</td></tr>)}
+        {!data.length && <tr><td colSpan={6}>該当なし</td></tr>}
+      </tbody></table></div>
+    </>}
+  </section>;
+}
