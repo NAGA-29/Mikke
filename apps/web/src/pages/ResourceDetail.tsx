@@ -1,4 +1,4 @@
-import { Badge, ErrorState, LoadingState, PageHeader, Time } from '../components/ui';
+import { Badge, ErrorState, LinkButton, LoadingState, PageHeader, Time } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource } from '../api';
@@ -39,10 +39,10 @@ export function ResourceDetail() {
       <h3>種別ごとの詳細</h3>
       <DetailList detail={res.detail} />
       <div className="form-actions">
-        <Link className="button" to="/software/products">ソフトウェア製品</Link>
-        {res.resource_type === 'compute' && <Link className="button" to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</Link>}
-        <Link className="button" to={`/eol?resource_id=${res.id}`}>この資産のEOL</Link>
-        <Link className="button" to={`/audit-logs?entity_type=resource&entity_id=${res.id}`}>監査ログ</Link>
+        <LinkButton icon="package" to="/software/products">ソフトウェア製品</LinkButton>
+        {res.resource_type === 'compute' && <LinkButton icon="server" to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</LinkButton>}
+        <LinkButton icon="calendar" to={`/eol?resource_id=${res.id}`}>この資産のEOL</LinkButton>
+        <LinkButton icon="clipboard" to={`/audit-logs?entity_type=resource&entity_id=${res.id}`}>監査ログ</LinkButton>
       </div>
       {!res.archived_at && (res.resource_type === 'compute' || res.resource_type === 'service_instance') && <ReleaseCycleAssignment
         key={`${res.id}-${res.updated_at}`} path={res.resource_type === 'compute' ? `/compute/${res.id}/os-release-cycle` : `/services/${res.id}/release-cycle`}

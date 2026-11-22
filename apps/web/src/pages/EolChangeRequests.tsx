@@ -1,4 +1,4 @@
-import { Badge, Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
+import { Badge, Button, DataTable, EmptyState, LinkButton, LoadingState, PageHeader, Time } from '../components/ui';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -36,7 +36,7 @@ export function EolChangeRequests() {
       <p>イベントID: {r.lifecycle_event_id}</p><p className="preserve-lines">変更理由: {r.request_note ?? '-'}</p>
       <RequestDiff request={r} />
       <p>決裁者: {r.decided_by ?? '-'} / 決裁日時: <Time value={r.decided_at} /></p><p className="preserve-lines">決裁メモ: {r.decision_note ?? '-'}</p>
-      <div className="form-actions"><Link to="/software/release-cycles">サポート期限を確認</Link>
+      <div className="form-actions"><LinkButton icon="calendar" to="/software/release-cycles">サポート期限を確認</LinkButton>
         {r.status === 'pending' && <><Button disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'approve' })}>承認</Button>
           <Button variant="danger" disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'reject' })}>却下</Button></>}
       </div>

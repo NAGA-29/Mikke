@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Button, DataTable, EmptyState, LinkButton, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -21,8 +21,8 @@ export function SoftwareProducts() {
     {data && <DataTable aria-label="ソフトウェア製品一覧"><thead><tr><th scope="col">製品</th><th scope="col">ベンダー</th><th scope="col">分類</th><th scope="col">操作</th></tr></thead><tbody>
       {data.map((p) => <tr key={p.id}><td>{p.name}</td><td>{p.vendor ?? '-'}</td><td>{p.category ?? '-'}</td><td>
         <Button onClick={() => setEditing(p)}>編集</Button>{' '}
-        <Link to={`/software/installations?software_product_id=${p.id}`}>導入</Link>{' '}
-        <Link to={`/software/release-cycles?software_product_id=${p.id}`}>サポート期限（系列・イベント）</Link>
+        <LinkButton icon="server" to={`/software/installations?software_product_id=${p.id}`}>導入</LinkButton>{' '}
+        <LinkButton icon="calendar" to={`/software/release-cycles?software_product_id=${p.id}`}>サポート期限</LinkButton>
       </td></tr>)}{!data.length && <tr><td colSpan={4}><EmptyState>該当なし</EmptyState></td></tr>}
     </tbody></DataTable>}
   </section>;

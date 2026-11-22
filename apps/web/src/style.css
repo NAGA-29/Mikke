@@ -210,3 +210,10 @@ summary { cursor: pointer; font-weight: 600; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
 .detail-card + .form-actions { margin-bottom: var(--space-6, 32px); }
+
+/* 他画面へ移動するリンク（操作ボタンと区別する） */
+.button-nav { gap: var(--space-2); background: var(--color-primary-soft); border-color: #b9d1ea; color: var(--color-primary); }
+.button-nav:hover { background: #d9e8f8; border-color: var(--color-primary); color: var(--color-primary-hover); }
+.button-nav .icon { flex: none; }
+.button-nav .icon:last-child { opacity: .55; transition: transform .12s, opacity .12s; }
+.button-nav:hover .icon:last-child { opacity: 1; transform: translateX(2px); }

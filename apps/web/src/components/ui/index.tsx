@@ -1,4 +1,5 @@
 import { formatDateTime } from '../../lib/datetime';
+import { Link, type LinkProps } from 'react-router-dom';
 import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
 
 export function Button({ variant = 'secondary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -41,4 +42,24 @@ export function DataTable({ children, 'aria-label': label, ...props }: TableHTML
 export function Time({ value }: { value: string | null | undefined }) {
   if (!value) return <>-</>;
   return <time dateTime={value} title={value}>{formatDateTime(value)}</time>;
+}
+
+// 外部ライブラリを使わない自前の線アイコン（24x24、stroke=currentColor）
+const ICONS = {
+  package: 'M21 8l-9-5-9 5v8l9 5 9-5V8zM3 8l9 5 9-5M12 13v8',
+  server: 'M4 5h16v6H4zM4 13h16v6H4zM8 8h.01M8 16h.01',
+  calendar: 'M7 3v3M17 3v3M5 5h14a1 1 0 011 1v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6a1 1 0 011-1zM4 9h16M9 14l2 2 4-4',
+  clipboard: 'M9 3h6a1 1 0 011 1v1H8V4a1 1 0 011-1zM6 5h12a1 1 0 011 1v14a1 1 0 01-1 1H6a1 1 0 01-1-1V6a1 1 0 011-1zM9 11h6M9 15h6',
+  arrow: 'M5 12h14M13 6l6 6-6 6',
+} as const;
+export type IconName = keyof typeof ICONS;
+
+export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
+  return <svg className="icon" aria-hidden="true" focusable="false" width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d={ICONS[name]} /></svg>;
+}
+
+/** 他の画面へ移動するリンク。操作ボタンと区別できるよう、アイコンと矢印を付けた色付きの見た目にする */
+export function LinkButton({ icon, children, className = '', ...props }: LinkProps & { icon: IconName }) {
+  return <Link className={`button button-nav ${className}`} {...props}><Icon name={icon} /><span>{children}</span><Icon name="arrow" size={14} /></Link>;
 }
