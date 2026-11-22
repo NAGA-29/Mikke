@@ -1,4 +1,4 @@
-import { Button } from './ui';
+import { Modal, Button } from './ui';
 import { verificationLabel } from '../lib/labels';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../api';
@@ -66,15 +66,15 @@ export function TextField({ label, value, onChange, required = false, maxLength 
     }} />{unsafe && <small id={errorId} className="error" role="alert">認証情報らしい入力を消去しました。URLに認証情報・認証クエリを含めないでください。</small>}</label>;
 }
 
-export function ReleaseCycleAssignment({ path, productId, currentId, onSaved }: {
-  path: string; productId: string | null; currentId: string | null; onSaved: () => void;
+export function ReleaseCycleAssignment({ path, productId, currentId, onSaved, onCancel, modalContext }: {
+  path: string; productId: string | null; currentId: string | null; onSaved: () => void; onCancel?: () => void; modalContext?: string;
 }) {
   const { data: cycles, error: loadError } = useApiData<ReleaseCycle[]>(`/software/release-cycles${productId ? `?software_product_id=${productId}` : ''}`);
   const [cycleId, setCycleId] = useState(currentId ?? '');
   const [allow, setAllow] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  return <form className="resource-form" onSubmit={async (e) => {
+  const form = <form className="resource-form" onSubmit={async (e) => {
     e.preventDefault(); setSaving(true); setError(null);
     try {
       await api(path, { method: 'PUT', json: { release_cycle_id: cycleId || null, allow_version_mismatch: allow } });
@@ -92,4 +92,8 @@ export function ReleaseCycleAssignment({ path, productId, currentId, onSaved }: 
     <label><input type="checkbox" checked={allow} onChange={(e) => setAllow(e.target.checked)} />バージョン不一致を確認のうえ許可する（EOL判定は不明になります）</label>
     <Button variant="primary" data-testid="form-submit" disabled={!cycles || !!loadError || (!!cycleId && !productId)}>割当を保存</Button>
   </fieldset></form>;
+  return onCancel ? <Modal title="リリース系列の割当・解除" size="lg" busy={saving} onClose={onCancel}>
+    {modalContext && <h3>{modalContext}</h3>}
+    {form}<Button data-testid="dialog-cancel" disabled={saving} onClick={onCancel}>キャンセル</Button>
+  </Modal> : form;
 }

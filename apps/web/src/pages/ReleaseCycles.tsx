@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
+import { Modal, Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
 import { eventTypeLabel, verificationLabel } from '../lib/labels';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -54,9 +54,12 @@ function CycleForm({ cycle: c, productId, onSaved, onCancel }: {
   const [target, setTarget] = useState('');
   const [allow, setAllow] = useState(false);
   const { data: installations, error: installationError } = useApiData<InstallationItem[]>(`/software/installations${product ? `?software_product_id=${product}` : ''}`);
+  // 同じ表示になる導入が複数あるときだけ短いIDで見分ける
+  const keys = (installations ?? []).map((i) => `${i.compute_name}/${i.product_name}/${i.version}`);
+  const dupInstalls = new Set(keys.filter((k, i) => keys.indexOf(k) !== i));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  return <form className="resource-form" onSubmit={async (e) => {
+  return <Modal title={c ? `${c.product_name} / ${c.cycle} を編集` : '系列を登録'} size="lg" busy={saving} onClose={onCancel}><form className="resource-form" onSubmit={async (e) => {
     e.preventDefault(); setSaving(true); setError(null);
     const json = { ...fields, match_pattern: fields.match_pattern || null, verified_at: fields.verified_at || null,
       verified_by: fields.verified_by || null, notes: fields.notes || null,
@@ -80,13 +83,13 @@ function CycleForm({ cycle: c, productId, onSaved, onCancel }: {
           <option value="installation">導入ソフトウェア</option><option value="service_instance">サービス</option><option value="compute_os">コンピュートOS</option>
         </select></label>
         {kind === 'installation' ? <><FormError error={installationError} scope="mikke:read" /><label>導入ソフトウェア<select required value={target} onChange={(e) => setTarget(e.target.value)}>
-          <option value="">選択してください</option>{installations?.map((i) => <option key={i.id} value={i.id}>{i.compute_name} / {i.product_name} / {i.version ?? '版不明'} / {i.id}</option>)}
+          <option value="">選択してください</option>{installations?.map((i) => <option key={i.id} value={i.id}>{i.compute_name} / {i.product_name} / {i.version ?? '版不明'}{dupInstalls.has(`${i.compute_name}/${i.product_name}/${i.version}`) ? ` / #${i.id.slice(0, 8)}` : ''}</option>)}
         </select></label></> : <ResourcePicker key={kind} label="割当先（同じ製品の稼働中資産）" types={[kind === 'compute_os' ? 'compute' : 'service_instance']} value={target} onChange={setTarget} />}
         <label><input type="checkbox" checked={allow} onChange={(e) => setAllow(e.target.checked)} />バージョン不一致を確認のうえ許可する</label>
       </>}
     </>}
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
-  </fieldset></form>;
+  </fieldset></form></Modal>;
 }
 
 function EventForm({ cycle, event: ev, onSaved, onCancel }: {
@@ -99,7 +102,7 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
     checked_at: defaultChecked, notes: ev?.notes ?? '', change_note: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  return <form className="resource-form" onSubmit={async (e) => {
+  return <Modal title={`${cycle.product_name} / ${cycle.cycle}：${ev ? `${eventTypeLabel(ev.event_type)} を編集` : 'イベントを登録'}`} size="lg" busy={saving} onClose={onCancel}><form className="resource-form" onSubmit={async (e) => {
     e.preventDefault(); setSaving(true); setError(null);
     const { change_note, ...values } = fields;
     try {
@@ -121,5 +124,5 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
     <label>メモ<textarea maxLength={10000} value={fields.notes} onChange={(e) => setFields({ ...fields, notes: e.target.value })} /></label>
     {ev && <label>変更理由・承認者への説明<textarea maxLength={10000} value={fields.change_note} onChange={(e) => setFields({ ...fields, change_note: e.target.value })} /></label>}
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
-  </fieldset></form>;
+  </fieldset></form></Modal>;
 }

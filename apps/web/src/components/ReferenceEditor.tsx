@@ -1,6 +1,6 @@
-import { Button, ErrorState, DateTimeField } from './ui';
+import { Modal, Button, ErrorState, DateTimeField } from './ui';
 import { deploymentStatusLabel, purposeLabel } from '../lib/labels';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
 import { ResourcePicker } from './ResourcePicker';
@@ -16,11 +16,6 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    formRef.current?.scrollIntoView({ block: 'start' });
-    formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>('input, select')?.focus({ preventScroll: true });
-  }, []);
   const deployment = selection.kind === 'deployment' ? selection.deployment : undefined;
   const [sourceId, setSourceId] = useState(deployment?.application_id
     ?? (selection.kind === 'relation' ? (selection.direction === 'out' ? resource.id : '')
@@ -85,7 +80,7 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
   const title = selection.kind === 'relation' ? '依存関係の登録'
     : selection.kind === 'app-repo' ? 'アプリ↔Repoリンクの登録' : deployment ? 'デプロイの編集' : 'デプロイの登録';
   const selectedType = relationTypes.find((t) => t.code === relationType);
-  return <form ref={formRef} className="resource-form reference-editor" onSubmit={submit} autoComplete="off">
+  return <Modal title={title} size={selection.kind === 'app-repo' ? 'md' : 'lg'} busy={saving} onClose={onCancel}><form className="resource-form reference-editor" onSubmit={submit} autoComplete="off">
     <fieldset disabled={saving}>
       <legend>{title}</legend>
       <p>認証情報・秘密情報は入力しないでください。新しい参照先はアーカイブされていない資産から選択します。</p>
@@ -131,5 +126,5 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
         <Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button>
       </div>
     </fieldset>
-  </form>;
+  </form></Modal>;
 }

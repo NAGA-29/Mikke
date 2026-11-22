@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
+import { Modal, Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -33,10 +33,8 @@ export function SoftwareInstallations() {
     <Button onClick={() => { setRevision((v) => v + 1); setEditing(null); setAssigning(null); }}>再読み込み</Button>
     {editing && <InstallationForm key={editing === 'new' ? 'new' : editing.id} installation={editing === 'new' ? null : editing}
       computeId={sp.get('compute_asset_id') ?? ''} productId={sp.get('software_product_id') ?? ''} onSaved={saved} onCancel={() => setEditing(null)} />}
-    {assigning && <><h3>{assigning.compute_name} / {assigning.product_name} / {assigning.version ?? '版不明'}</h3>
-      <ReleaseCycleAssignment key={assigning.id} path={`/software/installations/${assigning.id}/release-cycle`}
-        productId={assigning.software_product_id} currentId={assigning.release_cycle_id} onSaved={saved} />
-      <Button data-testid="dialog-cancel" onClick={() => setAssigning(null)}>キャンセル</Button></>}
+    {assigning && <ReleaseCycleAssignment key={assigning.id} path={`/software/installations/${assigning.id}/release-cycle`}
+        productId={assigning.software_product_id} currentId={assigning.release_cycle_id} onSaved={saved} onCancel={() => setAssigning(null)} modalContext={`${assigning.compute_name} / ${assigning.product_name} / ${assigning.version ?? '版不明'}`} />}
     {!data && !error && <LoadingState />}
     {data && <div className="reference-table"><DataTable aria-label="ソフトウェア導入一覧"><thead><tr><th scope="col">コンピュート</th><th scope="col">製品</th><th scope="col">バージョン</th><th scope="col">系列</th><th scope="col">導入方法・パス</th><th scope="col">設定パス</th><th scope="col">最終確認</th><th scope="col">操作</th></tr></thead><tbody>
       {data.map((i) => <tr key={i.id} className={i.compute_archived ? 'archived' : ''}>
@@ -59,7 +57,7 @@ function InstallationForm({ installation: i, computeId, productId, onSaved, onCa
     install_path: i?.install_path ?? '', config_path: i?.config_path ?? '', last_verified_at: i?.last_verified_at ?? '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  return <form className="resource-form" onSubmit={async (e) => {
+  return <Modal title={i ? '導入を編集' : '導入を登録'} size="lg" busy={saving} onClose={onCancel}><form className="resource-form" onSubmit={async (e) => {
     e.preventDefault(); setSaving(true); setError(null);
     const values = Object.fromEntries(Object.entries(fields).map(([k, v]) => [k, v || null]));
     try { await api(`/software/installations${i ? `/${i.id}` : ''}`, { method: i ? 'PATCH' : 'POST',
@@ -74,5 +72,5 @@ function InstallationForm({ installation: i, computeId, productId, onSaved, onCa
       <TextField key={key} label={label} maxLength={max} value={fields[key]} onChange={(v) => setFields({ ...fields, [key]: v })} />)}
     <DateTimeField label="最終確認日時" value={i?.last_verified_at} onChange={(v) => setFields((f) => ({ ...f, last_verified_at: v }))} />
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
-  </fieldset></form>;
+  </fieldset></form></Modal>;
 }

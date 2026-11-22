@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, type Resource } from '../api';
-import { Button } from './ui';
+import { Modal, Button } from './ui';
 import { FormError } from './FormError';
 import { ResourcePicker } from './ResourcePicker';
 
@@ -17,7 +17,7 @@ export function HostingEditor({ resource, selection, onSaved, onCancel }: {
   const [error, setError] = useState<unknown>(null);
   const title = selection.kind === 'host' ? 'ホスト先を設定/変更/解除'
     : selection.kind === 'add-service' ? 'サービスを追加' : 'ホスト先の解除';
-  return <form className="resource-form reference-editor" data-testid="hosting-editor" onSubmit={async (e) => {
+  return <Modal title={title} size="md" busy={saving} onClose={onCancel}><form className="resource-form reference-editor" data-testid="hosting-editor" onSubmit={async (e) => {
     e.preventDefault();
     if (!confirming) { setConfirming(true); return; }
     if (saving || resource.archived_at) return;
@@ -48,5 +48,5 @@ export function HostingEditor({ resource, selection, onSaved, onCancel }: {
       {confirming && selection.kind !== 'unset-service' && <Button type="button" data-testid="hosting-back" onClick={() => { setConfirming(false); setError(null); }}>選択に戻る</Button>}
       <Button type="button" data-testid="hosting-cancel" onClick={onCancel}>キャンセル</Button>
     </div>
-  </fieldset></form>;
+  </fieldset></form></Modal>;
 }

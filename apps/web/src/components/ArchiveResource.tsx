@@ -1,4 +1,4 @@
-import { Button } from './ui';
+import { Modal, Button } from './ui';
 import { useState } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
@@ -12,8 +12,8 @@ export function ArchiveResource({ resource, onSaved }: { resource: Resource; onS
   const action = resource.archived_at ? 'restore' : 'archive';
   const label = resource.archived_at ? '復元' : 'アーカイブ';
   return <section><h3>管理者操作</h3><p>mikke:admin が必要です。</p>
-    {!confirming ? <Button onClick={() => { setReady(false); setError(null); setConfirming(true); }}>{label}の参照確認</Button> : <>
-      <h4>{resource.name} の{label}前の参照一覧</h4>
+    <Button onClick={() => { setReady(false); setError(null); setConfirming(true); }}>{label}の参照確認</Button>
+    {confirming && <Modal title={`${resource.name} の${label}前の参照一覧`} size="lg" busy={saving} onClose={() => setConfirming(false)}>
       <ResourceReferences resource={resource} readOnly onReadyChange={setReady} />
       <form className="resource-form" onSubmit={async (e) => {
         e.preventDefault(); if (!ready || saving) return; setSaving(true); setError(null);
@@ -26,6 +26,6 @@ export function ArchiveResource({ resource, onSaved }: { resource: Resource; onS
         <div className="form-actions"><Button data-testid="dialog-confirm" variant={resource.archived_at ? 'primary' : 'danger'} disabled={!ready}>{saving ? '処理中…' : `${label}を実行`}</Button>
           <Button data-testid="dialog-cancel" type="button" onClick={() => setConfirming(false)}>キャンセル</Button></div>
       </fieldset></form>
-    </>}
+    </Modal>}
   </section>;
 }

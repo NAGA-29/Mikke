@@ -60,6 +60,9 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
     return () => { clearTimeout(timer); controller.abort(); };
   }, [query, offset, typeKey, hostingOnly, excludeId]);
 
+  // 同名の資産が複数あるときだけ、見分けのための短いIDを付ける（UUID全体は見せない）
+  const names = items.map((r) => r.name);
+  const duplicated = new Set(names.filter((n, i) => names.indexOf(n) !== i));
   return <div className="resource-picker" data-testid={testId}>
     <label htmlFor={`${id}-search`}>{label}：名前で検索</label>
     <input id={`${id}-search`} aria-describedby={descriptionId} data-testid={testId ? `${testId}-search` : undefined} type="search" maxLength={255} autoComplete="off" value={query}
@@ -68,7 +71,7 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
     <select id={`${id}-select`} aria-describedby={descriptionId} data-testid={testId ? `${testId}-select` : undefined} value={value} required={!optional} onChange={(e) => onChange(e.target.value)}>
       <option value="">{optional ? '指定なし' : '選択してください'}</option>
       {value && (loading || !items.some((r) => r.id === value)) && <option value={value}>{currentLabel ?? (selected?.id === value ? selected.name : lookupError ? '名前を取得できません' : '名前を読み込み中…')}（選択中）</option>}
-      {!loading && items.map((r) => <option key={r.id} value={r.id}>{r.name} / {RESOURCE_TYPE_LABEL[r.resource_type]} / {r.environment ?? '-'} / {r.id}</option>)}
+      {!loading && items.map((r) => <option key={r.id} value={r.id}>{r.name} / {RESOURCE_TYPE_LABEL[r.resource_type]} / {r.environment ?? '-'}{duplicated.has(r.name) ? ` / #${r.id.slice(0, 8)}` : ''}</option>)}
     </select>
     {loading && <small role="status">検索中…</small>}
     {!loading && !items.length && !error && <small>このページに候補はありません。</small>}

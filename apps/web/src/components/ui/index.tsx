@@ -1,6 +1,6 @@
 import { browserTimeZone, formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../lib/datetime';
 import { Link, type LinkProps } from 'react-router-dom';
-import { useId, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
 
 export function Button({ variant = 'secondary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -86,4 +86,43 @@ export function DateTimeField({ label, value, name, onChange, required = false, 
     {name && <input type="hidden" name={name} value={iso} />}
     <small>{browserTimeZone()} の時刻で入力します。{hint}</small>
   </div>;
+}
+
+/** Mounted only while open; native dialog provides focus trapping and inert background. */
+export function Modal({ title, onClose, children, size = 'md', busy = false }: {
+  title: string; onClose: () => void; children: ReactNode; size?: 'md' | 'lg'; busy?: boolean;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  // Capture before children with autoFocus are mounted.
+  const triggerRef = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null);
+  const backdropPointer = useRef(false);
+  useEffect(() => {
+    const dialog = ref.current!;
+    const trigger = triggerRef.current;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      document.body.style.overflow = overflow;
+      if (trigger?.isConnected) trigger.focus({ preventScroll: true });
+    };
+  }, []);
+  function outside(x: number, y: number) {
+    const rect = ref.current!.getBoundingClientRect();
+    return x < rect.left || x > rect.right || y < rect.top || y > rect.bottom;
+  }
+  return <dialog ref={ref} className={`modal modal-${size}`} aria-labelledby={titleId} aria-busy={busy}
+    onCancel={(e) => { e.preventDefault(); if (!busy) onClose(); }}
+    onPointerDown={(e) => { backdropPointer.current = e.target === e.currentTarget && outside(e.clientX, e.clientY); }}
+    onClick={(e) => {
+      if (!busy && backdropPointer.current && e.target === e.currentTarget && outside(e.clientX, e.clientY)) onClose();
+      backdropPointer.current = false;
+    }}>
+    <header className="modal-header"><h2 id={titleId}>{title}</h2>
+      <Button type="button" variant="ghost" aria-label="閉じる" disabled={busy} onClick={onClose}>×</Button>
+    </header>
+    <div className="modal-body">{children}</div>
+  </dialog>;
 }

@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LinkButton, LoadingState, PageHeader } from '../components/ui';
+import { Modal, Button, DataTable, EmptyState, LinkButton, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -34,7 +34,7 @@ function ProductForm({ product, onSaved, onCancel }: { product: Product | null; 
   const [category, setCategory] = useState(product?.category ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  return <form className="resource-form" onSubmit={async (e) => {
+  return <Modal title={product ? '製品を編集' : '製品を登録'} size="md" busy={saving} onClose={onCancel}><form className="resource-form" onSubmit={async (e) => {
     e.preventDefault(); setSaving(true); setError(null);
     try { await api(`/software/products${product ? `/${product.id}` : ''}`, {
       method: product ? 'PATCH' : 'POST', json: { name, vendor: vendor || null, category: category || null },
@@ -43,5 +43,5 @@ function ProductForm({ product, onSaved, onCancel }: { product: Product | null; 
     <FormError error={error} /><TextField label="製品名" required value={name} onChange={setName} />
     <TextField label="ベンダー" value={vendor} onChange={setVendor} /><TextField label="分類" maxLength={50} value={category} onChange={setCategory} />
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
-  </fieldset></form>;
+  </fieldset></form></Modal>;
 }

@@ -1,4 +1,4 @@
-import { Badge, Button, DataTable, EmptyState, LoadingState, ErrorState, Time } from './ui';
+import { Modal, Badge, Button, DataTable, EmptyState, LoadingState, ErrorState, Time } from './ui';
 import { purposeLabel, relationLabel } from '../lib/labels';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -24,8 +24,8 @@ function DeleteReference({ path, label, onDeleted }: { path: string; label: stri
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  if (!confirming) return <Button variant="danger" type="button" onClick={() => setConfirming(true)}>削除</Button>;
-  return <form onSubmit={async (e) => {
+  return <><Button variant="danger" type="button" onClick={() => setConfirming(true)}>削除</Button>
+  {confirming && <Modal title={`${label}の削除確認`} busy={saving} onClose={() => { setConfirming(false); setError(null); }}><form onSubmit={async (e) => {
     e.preventDefault();
     setSaving(true);
     setError(null);
@@ -40,7 +40,7 @@ function DeleteReference({ path, label, onDeleted }: { path: string; label: stri
       <div className="form-actions"><Button data-testid="dialog-confirm" variant="danger" type="submit">{saving ? '削除中…' : '削除を確定'}</Button>
         <Button data-testid="dialog-cancel" type="button" onClick={() => { setConfirming(false); setError(null); }}>キャンセル</Button></div>
     </fieldset>
-  </form>;
+  </form></Modal>}</>;
 }
 
 export function ResourceReferences({ resource, readOnly = false, onReadyChange, onChanged }: {

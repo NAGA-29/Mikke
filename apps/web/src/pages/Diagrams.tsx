@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
+import { Modal, Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -43,16 +43,18 @@ export function Diagrams() {
     } catch (e) { setError(e); } finally { setBusy(false); }
   }
   return <section><PageHeader title="構成図" actions={<Button variant="primary" data-testid="create-diagram" disabled={busy} onClick={() => { setEditing('new'); setName(''); setRemoving(null); }}>図を作成</Button>} />
-    <FormError error={error} />
-    {editing && <form className="resource-form" onSubmit={save}><fieldset disabled={busy}>
+    {!editing && !removing && <FormError error={error} />}
+    {editing && <Modal title={editing === 'new' ? '図を作成' : '図の名前を変更'} busy={busy} onClose={() => setEditing(null)}><form className="resource-form" onSubmit={save}><fieldset disabled={busy}>
       <legend>{editing === 'new' ? '図を作成' : '図の名前を変更'}</legend>
+      <FormError error={error} />
       <label>名前<input autoFocus required maxLength={255} value={name} onChange={(e) => setName(e.target.value)} /></label>
       <div className="form-actions"><Button variant="primary" data-testid="form-submit" disabled={!name.trim()}>保存</Button><Button data-testid="dialog-cancel" type="button" onClick={() => setEditing(null)}>キャンセル</Button></div>
-    </fieldset></form>}
-    {removing && <div className="canvas-confirm" role="region" aria-label="図の削除確認">
+    </fieldset></form></Modal>}
+    {removing && <Modal title="図の削除確認" busy={busy} onClose={() => setRemoving(null)}><div className="canvas-confirm" role="region" aria-label="図の削除確認">
+      <FormError error={error} />
       <p>「{removing.name}」とこの図の配置・非表示設定を削除します。資産と正本の関係は保持されます。</p>
       <Button variant="danger" data-testid="dialog-confirm" disabled={busy} onClick={() => void remove()}>この図を削除</Button>{' '}
-      <Button data-testid="dialog-cancel" disabled={busy} onClick={() => setRemoving(null)}>キャンセル</Button></div>}
+      <Button data-testid="dialog-cancel" disabled={busy} onClick={() => setRemoving(null)}>キャンセル</Button></div></Modal>}
     {loading ? <LoadingState /> : <DataTable aria-label="構成図一覧"><thead><tr><th scope="col">名前</th><th scope="col">操作</th></tr></thead><tbody>
       {items.map((d) => <tr key={d.id}><td><Link to={`/diagrams/${d.id}`}>{d.name}</Link></td><td>
         <Button disabled={busy} onClick={() => { setEditing(d); setName(d.name); setRemoving(null); }}>名前を変更</Button>{' '}
