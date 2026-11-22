@@ -1,53 +1,11 @@
 import { Button, ErrorState, LoadingState, PageHeader, DateTimeField } from '../components/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { enumLabel, fields } from '../lib/resourceFields';
 import { api, ApiError, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
 
 import { ResourcePicker } from '../components/ResourcePicker';
 import { ProductPicker } from '../components/ProductPicker';
-
-type Field = { name: string; label: string; max?: number; required?: boolean; options?: string[]; kind?: 'attributes' | 'boolean'; hint?: string };
-// 入力項目の正本: apps/api/src/services/resources.ts の各 detail スキーマ。
-const fields: Record<ResourceType, Field[]> = {
-  compute: [
-    { name: 'asset_kind', label: '資産種別', required: true, options: ['vps', 'vm', 'ec2', 'baremetal', 'container_host'] },
-    { name: 'hostname', label: 'ホスト名', max: 255 },
-    { name: 'display_alias', label: '管理用別名', max: 255 },
-    { name: 'provider', label: 'プロバイダー', max: 100 },
-    { name: 'region', label: 'リージョン / DC', max: 100 },
-    { name: 'os_name', label: 'OS名', max: 100 },
-    { name: 'os_version', label: 'OSバージョン', max: 100 },
-    { name: 'os_software_product_id', label: 'OS製品ID', hint: '製品名で検索して選択。指定なしで解除できます。' },
-    { name: 'architecture', label: 'アーキテクチャ', max: 32 },
-    { name: 'public_ip', label: '公開IP', hint: 'IPv4 / IPv6' },
-    { name: 'private_ip', label: '内部IP', hint: 'IPv4 / IPv6' },
-    { name: 'attributes', label: '属性（JSONオブジェクト）', kind: 'attributes' },
-  ],
-  application: [
-    { name: 'framework', label: 'フレームワーク', max: 100 },
-    { name: 'framework_version', label: 'フレームワークバージョン', max: 100 },
-    { name: 'runtime', label: 'ランタイム', max: 100 },
-    { name: 'runtime_requirement', label: '要求バージョン範囲', max: 100 },
-    { name: 'build_tool', label: 'ビルドツール', max: 100 },
-    { name: 'attributes', label: '属性（JSONオブジェクト）', kind: 'attributes' },
-  ],
-  service_instance: [
-    { name: 'service_kind', label: 'サービス種別', required: true, options: ['database', 'cache', 'queue', 'storage', 'hosting', 'other'] },
-    { name: 'engine', label: 'エンジン', max: 100 },
-    { name: 'engine_version', label: 'エンジンバージョン', max: 100 },
-    { name: 'software_product_id', label: 'ソフトウェア製品ID', hint: '製品名で検索して選択。指定なしで解除できます。' },
-    { name: 'provider', label: 'プロバイダー', max: 100 },
-    { name: 'is_managed', label: 'マネージドサービス', kind: 'boolean' },
-    { name: 'host_compute_id', label: 'ホストCompute ID', hint: 'アーカイブされていないコンピュートを名前で検索。指定なしで解除できます。' },
-    { name: 'endpoint', label: 'エンドポイント', max: 1024 },
-    { name: 'attributes', label: '属性（JSONオブジェクト）', kind: 'attributes' },
-  ],
-  repository: [
-    { name: 'provider', label: 'プロバイダー', max: 50 },
-    { name: 'repository_url', label: 'リポジトリURL', max: 2048, required: true, hint: 'HTTPS / HTTP / SSH / Git URL または git@host:owner/repo.git' },
-    { name: 'default_branch', label: '既定ブランチ', max: 255 },
-  ],
-};
 
 const secretKey = /pass(word|wd)?|secret|token|private[_-]?key|api[_-]?key|credential|auth/i;
 function hasSecretKey(value: unknown): boolean {
@@ -196,7 +154,7 @@ function Editor({ resource }: { resource: Resource | null }) {
             {field.kind === 'boolean' ? <input type="checkbox" aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} defaultChecked={value === true} />
               : field.options ? <select aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} required={field.required} defaultValue={typeof value === 'string' ? value : ''}>
                 <option value="">選択してください</option>
-                {field.options.map((v) => <option key={v} value={v}>{v}</option>)}
+                {field.options.map((v) => <option key={v} value={v}>{enumLabel(field.name, v)}</option>)}
               </select>
               : field.kind === 'attributes' ? <textarea aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} rows={5} defaultValue={JSON.stringify(value ?? {}, null, 2)} onChange={(e) => checkSensitive(e.currentTarget)} />
               : <input aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} maxLength={field.max} required={field.required} defaultValue={typeof value === 'string' ? value : ''} onChange={(e) => checkSensitive(e.currentTarget)} />}

@@ -1,4 +1,5 @@
 import { Badge, Button, DataTable, EmptyState, LoadingState, ErrorState, Time } from './ui';
+import { purposeLabel, relationLabel } from '../lib/labels';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type Resource } from '../api';
@@ -146,12 +147,12 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange, 
       </div>
       {(['out', 'in'] as const).map((direction) => <ReferenceTable key={direction} caption={direction === 'out' ? '出方向（関係元 → 関係先）' : '入方向（関係元 → 関係先）'}
         items={direction === 'out' ? refs.relations_out : refs.relations_in} headings={['関係元', '種別', '関係先', '説明', '操作']}
-        cells={(r) => [resourceLink(r.source_resource_id), r.relation_type, resourceLink(r.target_resource_id), r.description,
+        cells={(r) => [resourceLink(r.source_resource_id), relationLabel(r.relation_type), resourceLink(r.target_resource_id), r.description,
           !readOnly && <DeleteReference key={r.id} path={`/relations/${r.id}`} label="依存関係" onDeleted={deleted} />]} />)}
       <h4>アプリケーション↔リポジトリ</h4>
       {['application', 'repository'].includes(resource.resource_type) && <Button variant="primary" data-testid="create-app-repo" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'app-repo' })}>リンクを登録</Button>}
       <ReferenceTable caption="アプリケーション↔リポジトリのリンク" items={refs.application_repositories} headings={['アプリケーション', 'リポジトリ', '用途', '操作']}
-        cells={(r) => [resourceLink(r.application_id), resourceLink(r.repository_id), r.purpose,
+        cells={(r) => [resourceLink(r.application_id), resourceLink(r.repository_id), purposeLabel(r.purpose),
           !readOnly && <DeleteReference key={r.id} path={`/application-repositories/${r.id}`} label="アプリ↔Repoリンク" onDeleted={deleted} />]} />
       <ReferenceTable caption="ソフトウェア導入" items={refs.software_installations}
         headings={['コンピュート', '製品', 'バージョン', 'リリース系列', '導入方法', '導入パス', '設定パス', '最終確認']}

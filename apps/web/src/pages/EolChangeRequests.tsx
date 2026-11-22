@@ -1,4 +1,5 @@
 import { Badge, Button, DataTable, EmptyState, LinkButton, LoadingState, PageHeader, Time } from '../components/ui';
+import { eventTypeLabel } from '../lib/labels';
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -31,7 +32,7 @@ export function EolChangeRequests() {
     {selected && <DecisionForm key={`${selected.request.id}-${selected.decision}`} request={selected.request} decision={selected.decision}
       onCancel={() => setSelected(null)} onSaved={() => { setNotice('決裁しました。'); setSelected(null); setRevision((v) => v + 1); }} />}
     {!data && !error && <LoadingState />}
-    {data?.map((r) => <section key={r.id} className="cycle-card"><h3>{r.product_name} / {r.cycle} / {r.event_type}</h3>
+    {data?.map((r) => <section key={r.id} className="cycle-card"><h3>{r.product_name} / {r.cycle} / {eventTypeLabel(r.event_type)}</h3>
       <p>状態: <Badge status={r.status} /> / 依頼者: {r.requested_by} / 依頼日時: <Time value={r.created_at} /></p>
       <p>イベントID: {r.lifecycle_event_id}</p><p className="preserve-lines">変更理由: {r.request_note ?? '-'}</p>
       <RequestDiff request={r} />
@@ -69,7 +70,7 @@ function DecisionForm({ request, decision, onSaved, onCancel }: {
     e.preventDefault(); setSaving(true); setError(null);
     try { await api(`/software/lifecycle-event-change-requests/${request.id}/${decision}`, { method: 'POST', json: { note: note || null } }); onSaved(); }
     catch (e) { setError(e); } finally { setSaving(false); }
-  }}><fieldset disabled={saving}><legend>{decision === 'approve' ? '承認' : '却下'}の確認：{request.product_name} / {request.cycle} / {request.event_type}</legend>
+  }}><fieldset disabled={saving}><legend>{decision === 'approve' ? '承認' : '却下'}の確認：{request.product_name} / {request.cycle} / {eventTypeLabel(request.event_type)}</legend>
     <p>依頼者: {request.requested_by} / 依頼ID: {request.id}</p><RequestDiff request={request} />
     <FormError error={error} scope="mikke:eol:approve" />
     <label>決裁メモ<textarea maxLength={10000} value={note} onChange={(e) => setNote(e.target.value)} /></label>

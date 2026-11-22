@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource } from '../api';
 import { ResourceReferences } from '../components/ResourceReferences';
 import { ArchiveResource } from '../components/ArchiveResource';
+import { DetailList } from '../components/DetailList';
 import { ReleaseCycleAssignment } from '../components/SoftwareFields';
 
 export function ResourceDetail() {
@@ -37,7 +38,7 @@ export function ResourceDetail() {
         <dt>最終確認</dt><dd><Time value={res.last_verified_at} /></dd>
       </dl>
       <h3>種別ごとの詳細</h3>
-      <DetailList detail={res.detail} />
+      <DetailList type={res.resource_type} detail={res.detail} />
       <div className="form-actions">
         <LinkButton icon="package" to="/software/products">ソフトウェア製品</LinkButton>
         {res.resource_type === 'compute' && <LinkButton icon="server" to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</LinkButton>}
@@ -55,16 +56,4 @@ export function ResourceDetail() {
       <ArchiveResource key={`${res.id}-${res.archived_at}`} resource={res} onSaved={() => setRevision((n) => n + 1)} />
     </section>
   );
-}
-
-/** 種別ごとの詳細。値のある項目だけを一覧にし、object（attributes）は整形JSONで示す */
-function DetailList({ detail }: { detail: Record<string, unknown> | null }) {
-  const entries = Object.entries(detail ?? {}).filter(([, v]) => v !== null && v !== '' && !(typeof v === 'object' && Object.keys(v as object).length === 0));
-  if (entries.length === 0) return <dl className="detail-card"><dd className="muted">登録されている詳細項目はありません。</dd></dl>;
-  return <dl className="detail-card" data-testid="detail-list">
-    {entries.map(([k, v]) => <div key={k} style={{ display: 'contents' }}>
-      <dt>{k}</dt>
-      <dd>{typeof v === 'object' ? <pre>{JSON.stringify(v, null, 2)}</pre> : typeof v === 'boolean' ? (v ? 'はい' : 'いいえ') : String(v)}</dd>
-    </div>)}
-  </dl>;
 }

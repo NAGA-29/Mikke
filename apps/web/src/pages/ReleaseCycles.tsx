@@ -1,4 +1,5 @@
 import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
+import { eventTypeLabel, verificationLabel } from '../lib/labels';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -30,11 +31,11 @@ export function ReleaseCycles() {
     {!data && !error && <LoadingState />}
     {data?.map((c) => <section key={c.id} className="cycle-card">
       <div className="page-heading"><h3>{c.product_name} / {c.cycle}</h3><Button onClick={() => setEditor({ kind: 'cycle', cycle: c })}>系列を編集</Button></div>
-      <p>照合規則: {c.match_pattern ?? c.cycle} / 確認状態: {c.verification_status} / 稼働中の割当: {c.in_service_assignments}</p>
+      <p>照合規則: {c.match_pattern ?? c.cycle} / 確認状態: {verificationLabel(c.verification_status)} / 稼働中の割当: {c.in_service_assignments}</p>
       <p>確認日時: <Time value={c.verified_at} /> / 確認者: {c.verified_by ?? '-'}</p>{c.notes && <p className="preserve-lines">{c.notes}</p>}
       <Button variant="primary" data-testid="create-event" onClick={() => setEditor({ kind: 'event', cycle: c, event: null })}>イベントを登録</Button>
       <div className="reference-table"><DataTable aria-label="ライフサイクルイベント一覧"><thead><tr><th scope="col">種別</th><th scope="col">日付</th><th scope="col">根拠</th><th scope="col">確認日時</th><th scope="col">メモ</th><th scope="col">操作</th></tr></thead><tbody>
-        {c.events.map((ev) => <tr key={ev.id}><td>{ev.event_type}</td><td>{ev.event_date}</td><td>{ev.source_title ?? '-'}<br /><span className="source-text">{displaySourceUrl(ev.source_url)}</span></td>
+        {c.events.map((ev) => <tr key={ev.id}><td>{eventTypeLabel(ev.event_type)}</td><td>{ev.event_date}</td><td>{ev.source_title ?? '-'}<br /><span className="source-text">{displaySourceUrl(ev.source_url)}</span></td>
           <td><Time value={ev.checked_at} /></td><td className="preserve-lines">{ev.notes ?? '-'}</td><td><Button onClick={() => setEditor({ kind: 'event', cycle: c, event: ev })}>イベントを編集</Button></td></tr>)}
         {!c.events.length && <tr><td colSpan={6}><EmptyState>イベントなし（終了日不明）</EmptyState></td></tr>}
       </tbody></DataTable></div>
@@ -68,7 +69,7 @@ function CycleForm({ cycle: c, productId, onSaved, onCancel }: {
     <TextField label="系列名" required maxLength={100} value={fields.cycle} onChange={(v) => setFields({ ...fields, cycle: v })} />
     <TextField label="照合規則（バージョン接頭辞、例: 1.24, 1.25。空欄は系列名を使用）" value={fields.match_pattern} onChange={(v) => setFields({ ...fields, match_pattern: v })} />
     <label>確認状態<select value={fields.verification_status} onChange={(e) => setFields({ ...fields, verification_status: e.target.value })}>
-      {['unverified', 'verified', 'disputed'].map((v) => <option key={v}>{v}</option>)}
+      {['unverified', 'verified', 'disputed'].map((v) => <option key={v} value={v}>{verificationLabel(v)}</option>)}
     </select></label>
     <DateTimeField label="確認日時" value={c?.verified_at} hint="verified 時に空欄なら API が補完します。" onChange={(v) => setFields((f) => ({ ...f, verified_at: v }))} />
     <TextField label="確認者（verified時の空欄は認証主体）" value={fields.verified_by} onChange={(v) => setFields({ ...fields, verified_by: v })} />
@@ -107,10 +108,10 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
           ...(ev ? { expected_updated_at: ev.updated_at, change_note: change_note || null } : { release_cycle_id: cycle.id, event_type: type }) },
       }); onSaved(result.pending_approval === true);
     } catch (e) { setError(e); } finally { setSaving(false); }
-  }}><fieldset disabled={saving}><legend>{cycle.product_name} / {cycle.cycle}：{ev ? `${ev.event_type} を編集` : 'イベントを登録'}</legend>
+  }}><fieldset disabled={saving}><legend>{cycle.product_name} / {cycle.cycle}：{ev ? `${eventTypeLabel(ev.event_type)} を編集` : 'イベントを登録'}</legend>
     <FormError error={error} />
     {!ev && <label>イベント種別<select value={type} onChange={(e) => setType(e.target.value)}>
-      {['release', 'active_support_end', 'security_support_end', 'eol'].map((v) => <option key={v}>{v}</option>)}
+      {['release', 'active_support_end', 'security_support_end', 'eol'].map((v) => <option key={v} value={v}>{eventTypeLabel(v)}</option>)}
     </select></label>}
     <TextField label="公式に明示された日付" required type="date" value={fields.event_date} onChange={(v) => setFields({ ...fields, event_date: v })} />
     {ev && fields.event_date !== ev.event_date && <p role="status">日付変更: {ev.event_date} → {fields.event_date || '未入力'}。mikke:eol:approve がない場合は承認待ちとなります。</p>}

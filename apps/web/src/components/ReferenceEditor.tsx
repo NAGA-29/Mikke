@@ -1,4 +1,5 @@
 import { Button, ErrorState, DateTimeField } from './ui';
+import { deploymentStatusLabel, purposeLabel } from '../lib/labels';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
@@ -100,7 +101,7 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
       {selection.kind === 'relation' && <>
         <label>関係の種別（必須）<select required value={relationType} onChange={(e) => setRelationType(e.target.value)}>
           <option value="">選択してください</option>
-          {relationTypes.map((t) => <option key={t.code} value={t.code}>{t.label} ({t.code})</option>)}
+          {relationTypes.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
         </select></label>
         {selectedType && <small>{selectedType.description} / {selectedType.is_directed ? '関係元 → 関係先' : '方向なし'}</small>}
         {typeError && <ErrorState>関係種別を取得できません。<Button type="button" onClick={() => setTypeAttempt((n) => n + 1)}>再試行</Button></ErrorState>}
@@ -108,7 +109,7 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
         <label>説明<textarea name="description" maxLength={10000} /></label>
       </>}
       {selection.kind === 'app-repo' && <label>用途<select name="purpose" defaultValue="source">
-        {['source', 'config', 'infra', 'other'].map((purpose) => <option key={purpose}>{purpose}</option>)}
+        {['source', 'config', 'infra', 'other'].map((purpose) => <option key={purpose} value={purpose}>{purposeLabel(purpose)}</option>)}
       </select></label>}
       {selection.kind === 'deployment' && <>
         <ResourcePicker label="使用リポジトリ" optional types={['repository']} value={repositoryId} onChange={setRepositoryId}
@@ -119,7 +120,7 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
         <label>配置パス / サービス名<input name="deploy_path" maxLength={2048} defaultValue={deployment?.deploy_path ?? ''} /></label>
         <label>デプロイ方法<input name="deploy_method" maxLength={100} defaultValue={deployment?.deploy_method ?? ''} /></label>
         <label>リビジョン<input name="revision" maxLength={255} defaultValue={deployment?.revision ?? ''} /></label>
-        <label>状態<select name="status" defaultValue={deployment?.status ?? 'active'}><option>active</option><option>inactive</option></select></label>
+        <label>状態<select name="status" defaultValue={deployment?.status ?? 'active'}><option value="active">{deploymentStatusLabel('active')}</option><option value="inactive">{deploymentStatusLabel('inactive')}</option></select></label>
         <small>デプロイを停止扱いにする場合は inactive に変更します。</small>
         <DateTimeField label="デプロイ日時" name="deployed_at" value={deployment?.deployed_at} />
         <small>任意項目を空欄にすると未指定（編集時はクリア）になります。</small>

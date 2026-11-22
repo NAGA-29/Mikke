@@ -1,4 +1,5 @@
 import { Button } from './ui';
+import { verificationLabel } from '../lib/labels';
 import { useEffect, useId, useState } from 'react';
 import { api } from '../api';
 import { FormError } from './FormError';
@@ -86,7 +87,7 @@ export function ReleaseCycleAssignment({ path, productId, currentId, onSaved }: 
     <label>リリース系列<select value={cycleId} onChange={(e) => setCycleId(e.target.value)}>
       <option value="">割当なし（解除）</option>
       {cycleId && !cycles?.some((c) => c.id === cycleId) && <option value={cycleId}>{cycleId}（現在の割当）</option>}
-      {productId && cycles?.map((c) => <option key={c.id} value={c.id}>{c.cycle} / {c.verification_status}</option>)}
+      {productId && cycles?.map((c) => <option key={c.id} value={c.id}>{c.cycle} / {verificationLabel(c.verification_status)}</option>)}
     </select></label>
     <label><input type="checkbox" checked={allow} onChange={(e) => setAllow(e.target.checked)} />バージョン不一致を確認のうえ許可する（EOL判定は不明になります）</label>
     <Button variant="primary" data-testid="form-submit" disabled={!cycles || !!loadError || (!!cycleId && !productId)}>割当を保存</Button>
