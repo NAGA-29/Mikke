@@ -1,6 +1,6 @@
 # Mikke TODO
 
-最終更新: 2026-11-22（Step 3 Canvas UI実装、ブラウザー検証は未実施）
+最終更新: 2026-11-22（Step 4 MCP実装、実DBテストは接続制限により未実行）
 実装順序は設計書 §10 に従う。完了したらチェックを付け、日付と PR を書き添える。
 
 ## 現在の状態
@@ -49,11 +49,14 @@
 ### Step 4: 読み書き MCP
 設計書 §9・§12.3・§12.4。
 
-- [ ] MCP サーバー（公式 TypeScript SDK）。`apps/api` と同じ `services/*` を呼ぶ。直接SQLで更新しない
-- [ ] 初期ツール：`search_resources`, `get_resource`, `get_application_deployments`, `get_resource_dependencies`, `get_resource_graph`, `search_software_installations`, `list_eol_status`, `get_software_lifecycle`, `create_resource`, `update_resource`, `create_software_release_cycle`, `update_software_release_cycle`, `create_lifecycle_event`, `update_lifecycle_event`, `assign_release_cycle`
-- [ ] アーカイブ・関係削除・EOLイベント削除などの破壊的操作は公開しない
-- [ ] Agent ごとのトークンとスコープ。書き込み用の認証情報をプロンプトやログに出さない
+- [x] MCP サーバー（公式 TypeScript SDK）。`apps/api` と同じ `services/*` を呼ぶ。直接SQLで更新しない
+- [x] 初期ツール：`search_resources`, `get_resource`, `get_application_deployments`, `get_resource_dependencies`, `get_resource_graph`, `search_software_installations`, `list_eol_status`, `get_software_lifecycle`, `create_resource`, `update_resource`, `create_software_release_cycle`, `update_software_release_cycle`, `create_lifecycle_event`, `update_lifecycle_event`, `assign_release_cycle`
+- [x] アーカイブ・関係削除・EOLイベント削除などの破壊的操作は公開しない
+- [x] Agent ごとのトークンとスコープ。書き込み用の認証情報をプロンプトやログに出さない
 - [ ] Agent による EOL 調査フロー（§12.2）が API だけで完結することを確認する
+
+  - 2026-11-22、PR未作成。stdio起動・15ツール・共通認証・スコープ・同一TX監査・承認待ち・楽観ロックを実装。READMEに起動とクライアント設定を記載。
+  - SDK Client/InMemoryTransport統合テスト7件を追加。`pnpm typecheck` 通過。DBなしのSDKスモーク（ツール列挙・権限不足・actor_id拒否）通過。`pnpm test` はDB接続がEPERMでglobal setup停止、テスト本体は **NOT RUN**。調査フロー完了確認は実DB環境で残作業。
 
 ### Step 5: DADADA・SHIORI との横断検証
 別マイルストーン。着手前に連携の範囲をユーザーに確認する。

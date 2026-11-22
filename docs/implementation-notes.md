@@ -60,7 +60,7 @@
 ## Step 1 で未実装（後続）
 
 - Canvas UIはStep 3で実装済み（下記参照）。ブラウザーでの実操作確認は未実施。
-- MCP サーバー（Step 4）
+- MCP サーバーはStep 4で実装済み（下記参照）。実DBでの調査フロー確認は未実施。
 - `application.runtime_requirement` と系列の適合チェック（§12.1 将来）
 
 ## Step 2 ソフトウェア・EOL・管理 UI（2026-11-22）
@@ -93,3 +93,14 @@
 - 正本削除前は一覧を全ページ取得し、各図のGraphを最大5並列で読み、両端が配置されている図（表示中／非表示または変更済み）を影響候補として表示する。app_repositoryの場合は同じアプリ・Repoを参照するデプロイ件数も表示する。全図・MCPへの反映と非表示設定の掃除を明示し、確認チェック後に実行する。影響取得が失敗した場合は削除不可とする。図内非表示・再表示は別操作。
 - 既存APIには原子的な影響確認・削除やhosting解除の比較条件付きPATCHはない。影響は取得時点の候補であり、確認後の並行変更を固定しない。hosting解除直前には現在のhost_compute_idを再取得し、変わっていれば409相当で中止するが、取得からPATCHまでの競合は§6-8の将来の楽観ロック課題として残る。APIは変更していない。
 - 認証は既存のAPIクライアントを利用し、新しいトークン保存先やログ出力を追加しない。追加依存なし（作業開始時に導入済みの `@xyflow/react@12.12.1` を使用）。`pnpm typecheck`・Webビルドと純粋関数のスモーク確認は通過。開発サーバーの `listen EPERM` によりブラウザー実操作・実API連携は未検証。
+
+## Step 4 読み書き MCP（2026-11-22）
+
+- 公式SDK 1.32.2（作業開始時に導入済み）のMcpServer/registerToolとstdioを使用。追加依存なし。指定15ツールのみ公開し、adminにも削除・アーカイブ・承認ツールは公開しない。起動は `node --import tsx`、`.env` は読み込まない。stdoutはプロトコル専用、ログは固定文でstderrへ出す。
+- RESTのトークン照合をresolveActorに抽出して共用。MIKKE_MCP_TOKENを起動時に検証し、認証主体・スコープはプロセスに固定。actor_id/recorded_by引数はstrictスキーマで拒否する。verified_byは既存サービスの確認者メタデータであり、監査actorを変更しない。
+- 書き込みは全て既存サービス＋withTx。EOLスキーマをexportして共有し、業務ルール・ロック順序は変更しない。引数はinputにREST本文、更新にはid、割当にはtarget_kind/target_id。EOL更新は全更新＋expected_updated_at（マイクロ秒保持）。
+- 結果はtext/structuredContentにstatus/status_code/data。承認待ちはpending_approval、202、依頼と変更前後を返し、正本未反映を明示する。AppError/PG制約違反はisErrorとcode/message/statusに変換。例外が入力値を含む場合に備え、権限不足・stale_update以外はコード付き固定メッセージとし、任意のdetailsやSQLエラー本文は返さない。出力の認証情報らしいキー・認証付きURL・当該生トークンは防御的に伏せる。transport送信時にも適用し、SDK自身の入力検証エラーに未知の引数名として混入した生トークンも伏せる。
+- §9に従いget_resource_graphはdiagram_idで既存Graphサービスを使う。get_resource_dependenciesはgetReferencesの入出力relation・deployment・hosting・app-repo・導入・図参照を返す。get_application_deploymentsはアプリ種別を確認する。
+- 製品作成・導入作成は指定ツールにないため公開しない。調査は既存製品が前提。get_software_lifecycleは製品検索（q/software_product_id）と系列・イベント取得を合成し、系列未登録の製品も発見できる。テストは製品のみ事前登録し、その検索→対象サービス資産作成→系列→イベント→割当→EOL再取得をMCPだけで行う。
+- 不明な日付の捏造禁止・公式に明示されていない終了日を登録しないルールをEOLツール説明に記載。公式情報の正否はAgentが確認し、サーバーはsource_urlを取得しない。MCPのsource_urlには既存httpUrlにendpointの認証クエリ拒否を併用する（RESTの規則は変更していない）。
+- pnpm typecheck通過。DBなしのSDK Client/InMemoryTransportスモーク（15ツール列挙、権限不足、actor_id拒否）通過。pnpm testはlocalhost:5432接続がEPERMでglobal setup停止、追加統合テストを含め本体は **NOT RUN**。実DBで§12.2の完了確認が残る。
