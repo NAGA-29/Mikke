@@ -2,7 +2,7 @@
 Infrastructure Inventory &amp; Intelligence
 DaDaDaと連携して、脆弱性・障害・EOL・コスト・構成変更の影響を把握する。
 
-PLUS9.inc（ArkEve）内部専用の軽量CMDB。
+社内専用の軽量CMDB。
 
 - 設計: [docs/db-basic-design-v1.1.md](docs/db-basic-design-v1.1.md)
 - 実装メモ（設計の補強・解釈）: [docs/implementation-notes.md](docs/implementation-notes.md)

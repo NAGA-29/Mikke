@@ -19,7 +19,7 @@ async function fixture() {
   const a = await create.app('api');
   const c = await create.compute('host');
   const s = await create.service('db', { service_kind: 'database', host_compute_id: c.id });
-  const r = await create.repo('source', 'https://github.com/plus9/api');
+  const r = await create.repo('source', 'https://github.com/example-org/api');
   const relation = await ok('POST', '/relations', { body: {
     source_resource_id: a.id, target_resource_id: s.id, relation_type: 'uses',
   } });

@@ -32,10 +32,10 @@ describe('resources', () => {
   });
 
   it('creates the common row and detail in one transaction (detail failure rolls back)', async () => {
-    await create.repo('first', 'https://github.com/plus9/shared');
+    await create.repo('first', 'https://github.com/example-org/shared');
     // 共通行の INSERT 後に、詳細行の一意制約違反で失敗させる
     const r = await call('POST', '/resources', {
-      body: { resource_type: 'repository', name: 'orphan', detail: { repository_url: 'git@github.com:plus9/shared.git' } },
+      body: { resource_type: 'repository', name: 'orphan', detail: { repository_url: 'git@github.com:example-org/shared.git' } },
     });
     expect(r.status).toBe(409);
     const { rows } = await pool.query(`SELECT count(*)::int AS n FROM resources WHERE name = 'orphan'`);
@@ -71,14 +71,14 @@ describe('resources', () => {
   });
 
   it('normalizes and deduplicates repository URLs', async () => {
-    expect(normalizeRepositoryUrl('git@github.com:PLUS9/Mikke.git')).toBe('https://github.com/PLUS9/Mikke');
-    expect(normalizeRepositoryUrl('https://GitHub.com/PLUS9/Mikke/')).toBe('https://github.com/PLUS9/Mikke');
+    expect(normalizeRepositoryUrl('git@github.com:Example-Org/Mikke.git')).toBe('https://github.com/Example-Org/Mikke');
+    expect(normalizeRepositoryUrl('https://GitHub.com/Example-Org/Mikke/')).toBe('https://github.com/Example-Org/Mikke');
     expect(normalizeRepositoryUrl('https://git.example.com:8443/team/repo.git')).toBe('https://git.example.com:8443/team/repo');
     expect(normalizeRepositoryUrl('https://github.com:443/team/repo')).toBe('https://github.com/team/repo');
     expect(normalizeRepositoryUrl('ssh://git@git.example.com:2222/team/repo.git')).toBe('https://git.example.com/team/repo');
-    await create.repo('mikke', 'https://github.com/plus9/mikke.git');
+    await create.repo('mikke', 'https://github.com/example-org/mikke.git');
     const dup = await call('POST', '/resources', {
-      body: { resource_type: 'repository', name: 'dup', detail: { repository_url: 'git@github.com:plus9/mikke.git' } },
+      body: { resource_type: 'repository', name: 'dup', detail: { repository_url: 'git@github.com:example-org/mikke.git' } },
     });
     expect(dup.status).toBe(409);
   });

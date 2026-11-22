@@ -26,7 +26,7 @@ export function Docs() {
       </nav>
       <article className="prose" data-testid="docs-body">
         <h2 id="overview">Mikke とは</h2>
-        <p>PLUS9.inc 内部専用の軽量 CMDB です。サーバー・アプリ・サービス・リポジトリといった<strong>資産</strong>と、その<strong>つながり</strong>、
+        <p>社内専用の軽量 CMDB です。サーバー・アプリ・サービス・リポジトリといった<strong>資産</strong>と、その<strong>つながり</strong>、
           動いている<strong>ソフトウェアのサポート期限（EOL）</strong>を一か所で管理します。「このサーバーに何が載っているか」
           「この DB を使っているアプリはどれか」「どの Node.js がもうすぐ EOL か」に答えられることが目的です。</p>
         <p>同じ事実は<strong>一か所にだけ</strong>記録します。例えばデプロイの事実はデプロイ、ホスト先はサービス側の「ホスト先」にだけ保存され、

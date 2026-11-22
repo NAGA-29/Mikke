@@ -101,7 +101,7 @@ function Login({ onLogin, expired }: { onLogin: () => void; expired: boolean }) 
   return <main className="login-page">
     <form className="login" onSubmit={submit} aria-busy={busy}>
       <div className="login-brand">Mikke<span className="brand-dot">.</span></div>
-      <p className="eyebrow">INTERNAL CMDB / PLUS9.inc</p>
+      <p className="eyebrow">INTERNAL CMDB</p>
       <h1>管理コンソールにログイン</h1>
       <p className="muted">資産・依存関係・ソフトウェアのライフサイクルを管理します。</p>
       {expired && <ErrorState>セッションが無効になりました。再度ログインしてください。</ErrorState>}
