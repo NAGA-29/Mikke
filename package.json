@@ -1,11 +1,17 @@
 {
   "name": "mikke",
   "private": true,
-  "workspaces": ["apps/*"],
+  "packageManager": "pnpm@10.17.0",
+  "engines": {
+    "node": ">=22",
+    "pnpm": ">=10.17"
+  },
   "scripts": {
-    "migrate": "npm run migrate -w @mikke/api",
-    "dev": "npm run dev -w @mikke/api",
-    "test": "npm test -w @mikke/api",
-    "typecheck": "npm run typecheck -w @mikke/api"
+    "migrate": "pnpm --filter @mikke/api migrate",
+    "dev": "pnpm --filter @mikke/api dev",
+    "dev:web": "pnpm --filter @mikke/web dev",
+    "test": "pnpm --filter @mikke/api test",
+    "test:e2e": "pnpm --filter @mikke/e2e test",
+    "typecheck": "pnpm -r typecheck"
   }
 }

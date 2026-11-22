@@ -2,7 +2,7 @@
  * APIトークンを発行する。生トークンは一度だけ標準エラーに表示し、
  * MIKKE_API_TOKENS に追記するエントリ（SHA-256 ハッシュのみ）を標準出力に出す。
  *
- *   npm run token -w @mikke/api -- agent:eol-researcher mikke:read mikke:write
+ *   pnpm --filter @mikke/api token agent:eol-researcher mikke:read mikke:write
  */
 import { randomBytes } from 'node:crypto';
 import { hashToken } from '../src/auth.js';

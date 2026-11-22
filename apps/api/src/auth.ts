@@ -19,17 +19,21 @@ export function hasScope(actor: Actor, scope: Scope): boolean {
   return actor.scopes.has(scope) || actor.scopes.has('mikke:admin');
 }
 
+/** REST / stdio 共通のトークン照合。生トークンは保持しない。 */
+export function resolveActor(token: string, tokens: TokenEntry[]): Actor {
+  const presented = Buffer.from(hashToken(token), 'hex');
+  const entry = tokens.find((e) => timingSafeEqual(Buffer.from(e.token_sha256, 'hex'), presented));
+  if (!entry) throw new AppError(401, 'unauthenticated', 'invalid token');
+  return { id: entry.actor_id, scopes: new Set(entry.scopes) };
+}
+
 /** Authorization: Bearer <token> を検証し actor をセットする。トークン自体はログ等に残さない */
 export function authenticate(tokens: TokenEntry[]): MiddlewareHandler<AppEnv> {
-  const entries = tokens.map((t) => ({ ...t, hash: Buffer.from(t.token_sha256, 'hex') }));
   return async (c, next) => {
     const header = c.req.header('authorization') ?? '';
     const m = /^Bearer\s+(\S+)$/i.exec(header);
     if (!m?.[1]) throw new AppError(401, 'unauthenticated', 'missing bearer token');
-    const presented = Buffer.from(hashToken(m[1]), 'hex');
-    const entry = entries.find((e) => timingSafeEqual(e.hash, presented));
-    if (!entry) throw new AppError(401, 'unauthenticated', 'invalid token');
-    c.set('actor', { id: entry.actor_id, scopes: new Set(entry.scopes) });
+    c.set('actor', resolveActor(m[1], tokens));
     await next();
   };
 }
