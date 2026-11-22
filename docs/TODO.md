@@ -15,10 +15,10 @@
 ### Step 2: 手動登録・編集・検索 UI
 設計書 §10-2。スタックは React + Vite SPA（`apps/web` を新設）。
 
-- [ ] `apps/web` の雛形（Vite + React + TypeScript）。API は `/api/v1` を呼ぶ
-- [ ] 認証：当面はAPIトークンを入力して保持する簡易ログイン（SSOは未決、下記参照）
-- [ ] 資産一覧・検索（種別・環境・名前・アーカイブ含む）
-- [ ] 資産の詳細画面：共通項目＋種別ごとの詳細、`/resources/{id}/references` による参照一覧
+- [x] `apps/web` の雛形（Vite + React + TypeScript）。API は `/api/v1` を呼ぶ（dev は `npm run dev:web`、/api を :8080 へプロキシ）
+- [x] 認証：当面はAPIトークンを入力して保持する簡易ログイン（SSOは未決、下記参照）
+- [x] 資産一覧・検索（種別・環境・名前・アーカイブ含む）
+- [~] 資産の詳細画面：共通項目・詳細・参照一覧は取得して表示済み（参照一覧は暫定でJSON表示。整形が残り）
 - [ ] 種別ごとの登録・編集フォーム（compute / application / service_instance / repository）
 - [ ] 依存関係・デプロイ・アプリ↔Repo の登録・削除
 - [ ] ソフトウェア導入の登録、リリース系列の割当
@@ -26,7 +26,7 @@
 - [ ] EOL 日付変更の承認待ち一覧と承認・却下（`mikke:eol:approve` 保持者向け）
 - [ ] アーカイブ・復元（admin のみ。実行前に参照一覧を表示）
 - [ ] 監査ログの閲覧
-- 確認事項：設計書が参考にしている「TestReportPortal に近い UI」がどういうものか、着手前にユーザーに聞く
+- UI の参考像は「一覧＋詳細の管理画面型」（左サイドナビ・フィルタ付き一覧・詳細ページ・フォーム編集）で確定
 
 ### Step 3: Graph API と Canvas
 設計書 §5・§6・§10-3。
@@ -53,7 +53,7 @@
 
 - [ ] SSO の方式（Google Workspace OIDC / GitHub OAuth など）。今はAPIトークンのみ
 - [ ] 本番のデプロイ先と運用（DB のホスティング、バックアップ、トークンの配布方法）
-- [ ] Step 2 の UI の参考像（「TestReportPortal に近い」の具体）
+- [x] Step 2 の UI の参考像 → 一覧＋詳細の管理画面型
 
 ## 技術的な宿題
 

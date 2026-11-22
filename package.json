@@ -6,6 +6,7 @@
     "migrate": "npm run migrate -w @mikke/api",
     "dev": "npm run dev -w @mikke/api",
     "test": "npm test -w @mikke/api",
-    "typecheck": "npm run typecheck -w @mikke/api"
+    "dev:web": "npm run dev -w @mikke/web",
+    "typecheck": "npm run typecheck -w @mikke/api && npm run typecheck -w @mikke/web"
   }
 }
