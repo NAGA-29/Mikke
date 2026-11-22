@@ -21,30 +21,30 @@ docs/            設計書・実装メモ
 
 ```bash
 docker compose up -d          # PostgreSQL 18（mikke / mikke_test）
-npm install
+pnpm install
 cp .env.example .env          # 値を調整（migrate / dev / start はルートの .env を読み込む）
 ```
 
 マイグレーション:
 
 ```bash
-npm run migrate
+pnpm migrate
 ```
 
 APIトークン発行（出力のJSONを `MIKKE_API_TOKENS` の配列に追加。生トークンは一度だけ表示）:
 
 ```bash
-npm run token -w @mikke/api -- agent:eol-researcher mikke:read mikke:write
+pnpm --filter @mikke/api token agent:eol-researcher mikke:read mikke:write
 ```
 
 起動・テスト:
 
 ```bash
-npm run dev
+pnpm dev
 ```
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## API（`/api/v1`、`Authorization: Bearer <token>`）

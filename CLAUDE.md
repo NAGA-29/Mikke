@@ -20,20 +20,20 @@ PLUS9.inc（ArkEve）内部専用の軽量CMDB。インフラ資産・依存関�
 - テスト: Vitest + 実PostgreSQL（モックDBは使わない）
 - フロント（未着手）: React + Vite SPA、Canvas は React Flow
 - 認証: スコープ付きAPIトークン（SSOは後で差し込める構造）
-- npm workspaces（`apps/*`）
+- pnpm workspaces（`apps/*`、pnpm 10。`minimumReleaseAge` で公開7日未満の版は入らない）
 
 ## コマンド（リポジトリ直下で実行）
 
 ```bash
-npm install
-npm run migrate      # ルートの .env を読む
-npm run dev
-npm test             # mikke_test を毎回作り直す
-npm run typecheck
-npm run token -w @mikke/api -- <actor_id> mikke:read mikke:write
+pnpm install
+pnpm migrate      # ルートの .env を読む
+pnpm dev
+pnpm test             # mikke_test を毎回作り直す
+pnpm typecheck
+pnpm --filter @mikke/api token <actor_id> mikke:read mikke:write
 ```
 
-コミット前に `npm run typecheck` と `npm test` を必ず通す。
+コミット前に `pnpm typecheck` と `pnpm test` を必ず通す。
 
 ## 構成
 

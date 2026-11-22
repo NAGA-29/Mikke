@@ -15,7 +15,7 @@
 ### Step 2: 手動登録・編集・検索 UI
 設計書 §10-2。スタックは React + Vite SPA（`apps/web` を新設）。
 
-- [x] `apps/web` の雛形（Vite + React + TypeScript）。API は `/api/v1` を呼ぶ（dev は `npm run dev:web`、/api を :8080 へプロキシ）
+- [x] `apps/web` の雛形（Vite + React + TypeScript）。API は `/api/v1` を呼ぶ（dev は `pnpm dev:web`、/api を :8080 へプロキシ）
 - [x] 認証：当面はAPIトークンを入力して保持する簡易ログイン（SSOは未決、下記参照）
 - [x] 資産一覧・検索（種別・環境・名前・アーカイブ含む）
 - [~] 資産の詳細画面：共通項目・詳細・参照一覧は取得して表示済み（参照一覧は暫定でJSON表示。整形が残り）
@@ -57,7 +57,7 @@
 
 ## 技術的な宿題
 
-- [ ] **CI がまだ無い**。GitHub Actions で PostgreSQL 18 のサービスコンテナを立て、`npm run typecheck` と `npm test` を回す
+- [ ] **CI がまだ無い**。GitHub Actions で PostgreSQL 18 のサービスコンテナを立て、`pnpm typecheck` と `pnpm test` を回す
 - [ ] OpenAPI など API 仕様の機械可読な定義（UI と MCP の実装前にあると楽）
 - [ ] EOL系以外の更新にも楽観ロック（`expected_updated_at`）を入れる（§6-8 で「後日」とされている）
 - [ ] 資産と種別詳細の1:1整合（詳細行が欠けた資産）を見つける定期チェック SQL（§13）

@@ -1,0 +1,12 @@
+packages:
+  - apps/*
+
+# --- サプライチェーン対策 ---
+# 公開から7日（10080分）経っていないバージョンはインストールしない
+minimumReleaseAge: 10080
+# 依存のビルドスクリプト（postinstall 等）は許可リストの分だけ実行する。
+# 追加するときは理由を確認してレビューに出す
+onlyBuiltDependencies:
+  - esbuild
+# peerDependencies の不整合を警告で済ませず失敗させる
+strictPeerDependencies: true
