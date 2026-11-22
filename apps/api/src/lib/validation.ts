@@ -19,9 +19,7 @@ export const reqStr = (max: number) => z.string().trim().min(1).max(max);
 export const timestamp = z.iso.datetime({ offset: true });
 export const optTimestamp = timestamp.nullable().optional();
 export const isoDate = z.iso.date();
-export const environment = z
-  .string()
-  .regex(/^[a-z][a-z0-9_-]{0,31}$/, 'lowercase slug such as prod / stg / dev');
+export const environment = z.string().regex(/^[a-z][a-z0-9_-]{0,31}$/, 'lowercase slug such as prod / stg / dev');
 
 export const httpUrl = z
   .string()

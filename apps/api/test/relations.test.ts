@@ -25,27 +25,36 @@ describe('relations (MVP受け入れ基準3)', () => {
       'uses:redis',
     ]);
     const toSqs = await ok('GET', `/relations?resource_id=${sqs.id}&direction=in`);
-    expect(toSqs.map((r: any) => `${r.source_name}:${r.relation_type}`).sort()).toEqual([
-      'api:publishes_to',
-      'worker:consumes_from',
-    ]);
+    expect(toSqs.map((r: any) => `${r.source_name}:${r.relation_type}`).sort()).toEqual(['api:publishes_to', 'worker:consumes_from']);
   });
 
   it('rejects self relations, duplicates, derived and unknown types', async () => {
     const a = await create.app('a');
     const b = await create.app('b');
-    expect((await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: a.id, relation_type: 'uses' } })).status).toBe(422);
+    expect(
+      (await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: a.id, relation_type: 'uses' } })).status,
+    ).toBe(422);
     await ok('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'uses' } });
-    expect((await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'uses' } })).status).toBe(409);
-    expect((await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'hosted_on' } })).status).toBe(422);
+    expect(
+      (await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'uses' } })).status,
+    ).toBe(409);
+    expect(
+      (await call('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'hosted_on' } }))
+        .status,
+    ).toBe(422);
   });
 
   it('deleting a relation cleans up diagram hidden-edge entries and is audited', async () => {
     const a = await create.app('a');
     const b = await create.app('b');
-    const rel = await ok('POST', '/relations', { body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'depends_on' } });
+    const rel = await ok('POST', '/relations', {
+      body: { source_resource_id: a.id, target_resource_id: b.id, relation_type: 'depends_on' },
+    });
     const { rows } = await pool.query(`INSERT INTO diagrams (name) VALUES ('d') RETURNING id`);
-    await pool.query(`INSERT INTO diagram_hidden_edges (diagram_id, edge_kind, edge_record_id) VALUES ($1, 'relation', $2)`, [rows[0].id, rel.id]);
+    await pool.query(`INSERT INTO diagram_hidden_edges (diagram_id, edge_kind, edge_record_id) VALUES ($1, 'relation', $2)`, [
+      rows[0].id,
+      rel.id,
+    ]);
 
     expect((await call('DELETE', `/relations/${rel.id}`)).status).toBe(204);
     const left = await pool.query('SELECT count(*)::int AS n FROM diagram_hidden_edges');
@@ -93,7 +102,9 @@ describe('deployments (MVP受け入れ基準2)', () => {
     expect(bad.status).toBe(422);
     expect(bad.body.error.code).toBe('invalid_deployment_target');
     await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: hosting.id, environment: 'prod' } });
-    expect((await call('POST', '/deployments', { body: { application_id: app.id, target_resource_id: other.id, environment: 'prod' } })).status).toBe(422);
+    expect(
+      (await call('POST', '/deployments', { body: { application_id: app.id, target_resource_id: other.id, environment: 'prod' } })).status,
+    ).toBe(422);
 
     const unlinked = await call('POST', '/deployments', {
       body: { application_id: app.id, target_resource_id: hosting.id, repository_id: repo.id, environment: 'prod' },
@@ -106,7 +117,9 @@ describe('deployments (MVP受け入れ基準2)', () => {
     const repo = await create.repo('web', 'https://github.com/example-org/web');
     const vps = await create.compute('vps');
     await ok('POST', '/application-repositories', { body: { application_id: app.id, repository_id: repo.id } });
-    const d = await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' } });
+    const d = await ok('POST', '/deployments', {
+      body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' },
+    });
     await ok('POST', `/resources/${repo.id}/archive`, { as: 'admin' });
     const r = await ok('PATCH', `/deployments/${d.id}`, { body: { status: 'inactive', repository_id: repo.id } });
     expect(r.status).toBe('inactive');
@@ -117,7 +130,9 @@ describe('deployments (MVP受け入れ基準2)', () => {
     const repo = await create.repo('web', 'https://github.com/example-org/web');
     const vps = await create.compute('vps');
     const link = await ok('POST', '/application-repositories', { body: { application_id: app.id, repository_id: repo.id } });
-    await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' } });
+    await ok('POST', '/deployments', {
+      body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' },
+    });
     const r = await call('DELETE', `/application-repositories/${link.id}`);
     expect(r.status).toBe(409);
     expect(r.body.error.code).toBe('link_in_use');

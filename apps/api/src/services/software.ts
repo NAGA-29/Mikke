@@ -265,7 +265,11 @@ export async function assignReleaseCycle(tx: PoolClient, actor: Actor, kind: Tar
 // software_release_cycles
 // ===========================================================================
 
-const matchPattern = z.string().trim().max(255).refine(isValidPattern, 'match_pattern must be comma-separated version prefixes (e.g. "8.4" or "1.24, 1.25")');
+const matchPattern = z
+  .string()
+  .trim()
+  .max(255)
+  .refine(isValidPattern, 'match_pattern must be comma-separated version prefixes (e.g. "8.4" or "1.24, 1.25")');
 
 const cycleFields = {
   cycle: reqStr(100),
@@ -333,11 +337,10 @@ async function isCycleRelevant(db: Queryable, productId: string, cycleId: string
 export async function createReleaseCycle(tx: PoolClient, actor: Actor, body: unknown) {
   const { assign_to, ...input } = requireMatchable(fillVerification(parse(createCycleSchema, body), actor));
   await getProduct(tx, input.software_product_id);
-  const existing = await one<CycleRow>(
-    tx,
-    'SELECT * FROM software_release_cycles WHERE software_product_id = $1 AND cycle = $2',
-    [input.software_product_id, input.cycle],
-  );
+  const existing = await one<CycleRow>(tx, 'SELECT * FROM software_release_cycles WHERE software_product_id = $1 AND cycle = $2', [
+    input.software_product_id,
+    input.cycle,
+  ]);
   if (existing) throw conflict('already_exists', 'release cycle already exists for this product', { existing });
 
   if (!assign_to && !(await isCycleRelevant(tx, input.software_product_id, null, input.cycle, input.match_pattern ?? null))) {
@@ -348,7 +351,7 @@ export async function createReleaseCycle(tx: PoolClient, actor: Actor, body: unk
   }
   const row = await insertRow<CycleRow>(tx, 'software_release_cycles', input);
   await recordAudit(tx, { actorId: actor.id, action: 'create', entityType: 'software_release_cycle', entityId: row.id, after: row });
-  let assignment;
+  let assignment: Awaited<ReturnType<typeof assignReleaseCycle>> | undefined;
   if (assign_to) {
     assignment = await assignReleaseCycle(tx, actor, assign_to.target_kind, assign_to.target_id, {
       release_cycle_id: row.id,
@@ -458,11 +461,10 @@ export async function createLifecycleEvent(tx: PoolClient, actor: Actor, body: u
   const cycle = await one<CycleRow>(tx, 'SELECT * FROM software_release_cycles WHERE id = $1', [input.release_cycle_id]);
   if (!cycle) throw notFound('release cycle', input.release_cycle_id);
 
-  const existing = await one<EventRow>(
-    tx,
-    'SELECT * FROM software_lifecycle_events WHERE release_cycle_id = $1 AND event_type = $2',
-    [input.release_cycle_id, input.event_type],
-  );
+  const existing = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE release_cycle_id = $1 AND event_type = $2', [
+    input.release_cycle_id,
+    input.event_type,
+  ]);
   if (existing) {
     if (existing.event_date === input.event_date && existing.source_url === input.source_url) {
       return { ...existing, idempotent: true };
@@ -482,8 +484,22 @@ export async function createLifecycleEvent(tx: PoolClient, actor: Actor, body: u
 
 const EVENT_COLUMNS = [...Object.keys(eventFields), 'recorded_by'];
 
-async function applyEventUpdate(tx: PoolClient, actorId: string, recordedBy: string, before: EventRow, data: Record<string, unknown>, extra?: object) {
-  const after = await updateColumns<EventRow>(tx, 'software_lifecycle_events', 'id', before.id, { ...data, recorded_by: recordedBy }, EVENT_COLUMNS);
+async function applyEventUpdate(
+  tx: PoolClient,
+  actorId: string,
+  recordedBy: string,
+  before: EventRow,
+  data: Record<string, unknown>,
+  extra?: object,
+) {
+  const after = await updateColumns<EventRow>(
+    tx,
+    'software_lifecycle_events',
+    'id',
+    before.id,
+    { ...data, recorded_by: recordedBy },
+    EVENT_COLUMNS,
+  );
   await recordAudit(tx, {
     actorId,
     action: 'update',
@@ -547,7 +563,13 @@ async function createChangeRequest(tx: PoolClient, actor: Actor, before: EventRo
     requested_by: actor.id,
     request_note: note,
   });
-  await recordAudit(tx, { actorId: actor.id, action: 'request_change', entityType: 'lifecycle_event_change_request', entityId: row.id, after: row });
+  await recordAudit(tx, {
+    actorId: actor.id,
+    action: 'request_change',
+    entityType: 'lifecycle_event_change_request',
+    entityId: row.id,
+    after: row,
+  });
   return { ...row, diff: diffFields(before, proposed, Object.keys(eventFields)) };
 }
 
@@ -611,7 +633,11 @@ async function decide(tx: PoolClient, actor: Actor, id: string, status: 'approve
 export async function approveChangeRequest(tx: PoolClient, actor: Actor, id: string, body: unknown) {
   const { note } = parse(decisionSchema, body ?? {});
   // 再提案（イベント行 → 依頼行の順にロック）とロック順序を揃え、デッドロックを避ける。lifecycle_event_id は不変
-  const ref = await one<{ lifecycle_event_id: string }>(tx, 'SELECT lifecycle_event_id FROM lifecycle_event_change_requests WHERE id = $1', [id]);
+  const ref = await one<{ lifecycle_event_id: string }>(
+    tx,
+    'SELECT lifecycle_event_id FROM lifecycle_event_change_requests WHERE id = $1',
+    [id],
+  );
   if (!ref) throw notFound('change request', id);
   const event = await one<EventRow>(tx, 'SELECT * FROM software_lifecycle_events WHERE id = $1 FOR UPDATE', [ref.lifecycle_event_id]);
   if (!event) throw notFound('lifecycle event', ref.lifecycle_event_id);
@@ -620,7 +646,14 @@ export async function approveChangeRequest(tx: PoolClient, actor: Actor, id: str
   const proposed = parse(z.strictObject(eventFields), req.proposed_data);
   const updated = await applyEventUpdate(tx, actor.id, req.requested_by, event, proposed, { approved_change_request_id: id });
   const decided = await decide(tx, actor, id, 'approved', note ?? null);
-  await recordAudit(tx, { actorId: actor.id, action: 'approve', entityType: 'lifecycle_event_change_request', entityId: id, before: req, after: decided });
+  await recordAudit(tx, {
+    actorId: actor.id,
+    action: 'approve',
+    entityType: 'lifecycle_event_change_request',
+    entityId: id,
+    before: req,
+    after: decided,
+  });
   return { change_request: decided, lifecycle_event: updated };
 }
 
@@ -628,7 +661,14 @@ export async function rejectChangeRequest(tx: PoolClient, actor: Actor, id: stri
   const { note } = parse(decisionSchema, body ?? {});
   const req = await lockPendingRequest(tx, actor, id);
   const decided = await decide(tx, actor, id, 'rejected', note ?? null);
-  await recordAudit(tx, { actorId: actor.id, action: 'reject', entityType: 'lifecycle_event_change_request', entityId: id, before: req, after: decided });
+  await recordAudit(tx, {
+    actorId: actor.id,
+    action: 'reject',
+    entityType: 'lifecycle_event_change_request',
+    entityId: id,
+    before: req,
+    after: decided,
+  });
   return decided;
 }
 

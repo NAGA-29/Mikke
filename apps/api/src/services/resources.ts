@@ -6,17 +6,7 @@ import type { Queryable } from '../db/pool.js';
 import { many, one } from '../db/pool.js';
 import { conflict, invalid, notFound } from '../errors.js';
 import { insertRow, updateColumns } from '../lib/sql.js';
-import {
-  attributes,
-  endpoint,
-  environment,
-  ipAddress,
-  optStr,
-  optTimestamp,
-  parse,
-  reqStr,
-  uuid,
-} from '../lib/validation.js';
+import { attributes, endpoint, environment, ipAddress, optStr, optTimestamp, parse, reqStr, uuid } from '../lib/validation.js';
 import { cleanupHiddenEdges, requireResource, RESOURCE_TYPES, type ResourceRow, type ResourceType } from './common.js';
 
 // ---------------------------------------------------------------------------
@@ -230,9 +220,15 @@ export async function getResourceSummary(db: Queryable) {
             count(*) FILTER (WHERE archived_at IS NOT NULL)::int AS archived
        FROM resources GROUP BY resource_type`,
   );
-  const by_type = Object.fromEntries(RESOURCE_TYPES.map((t) => [t, { active: 0, archived: 0 }])) as Record<ResourceType, { active: number; archived: number }>;
+  const by_type = Object.fromEntries(RESOURCE_TYPES.map((t) => [t, { active: 0, archived: 0 }])) as Record<
+    ResourceType,
+    { active: number; archived: number }
+  >;
   for (const r of rows) by_type[r.resource_type] = { active: r.active, archived: r.archived };
-  const total = Object.values(by_type).reduce((a, v) => ({ active: a.active + v.active, archived: a.archived + v.archived }), { active: 0, archived: 0 });
+  const total = Object.values(by_type).reduce((a, v) => ({ active: a.active + v.active, archived: a.archived + v.archived }), {
+    active: 0,
+    archived: 0,
+  });
   return { by_type, total };
 }
 
@@ -276,13 +272,7 @@ export async function updateResource(tx: PoolClient, actor: Actor, id: string, b
   }
 
   const { detail: _ignored, ...base } = input;
-  await updateColumns(tx, 'resources', 'id', id, base, [
-    'name',
-    'description',
-    'environment',
-    'lifecycle_status',
-    'last_verified_at',
-  ]);
+  await updateColumns(tx, 'resources', 'id', id, base, ['name', 'description', 'environment', 'lifecycle_status', 'last_verified_at']);
   const detailCols = Object.keys(def.patch.shape);
   await updateColumns(tx, def.table, 'resource_id', id, detail, detailCols);
   // 詳細だけの更新でも共通行の updated_at を進める

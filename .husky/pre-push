@@ -1,0 +1,10 @@
+#!/bin/sh
+# push 前に API の lint / format（検査のみ・書き換えない）とテストを実行する。
+# テストは PostgreSQL 18 が必要（docker compose up -d）。緊急時のみ `git push --no-verify` で省略できる。
+set -e
+
+echo "[pre-push] api: lint / format"
+pnpm --filter @mikke/api check
+
+echo "[pre-push] api: test"
+pnpm --filter @mikke/api test

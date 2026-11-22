@@ -84,6 +84,8 @@ pnpm dev:web      # Web UI（http://localhost:5173）
 pnpm test
 ```
 
+API の lint / format（Biome）は `pnpm check:api`、自動整形は `pnpm format:api`。`pnpm install` で husky が入り、`git push` の前に API の lint / format とテストが自動で走る（DB が必要。緊急時のみ `git push --no-verify`）。CI でも同じ検査を実行する。
+
 ## API（`/api/v1`、`Authorization: Bearer <token>`）
 
 | メソッド | パス | スコープ |

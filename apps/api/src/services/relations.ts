@@ -29,10 +29,8 @@ export async function createRelation(tx: PoolClient, actor: Actor, body: unknown
   if (input.source_resource_id === input.target_resource_id) {
     throw invalid('self_relation', 'source and target must be different resources');
   }
-  const type = await one<{ code: string; is_active: boolean }>(tx, 'SELECT * FROM relation_types WHERE code = $1', [
-    input.relation_type,
-  ]);
-  if (!type || !type.is_active) {
+  const type = await one<{ code: string; is_active: boolean }>(tx, 'SELECT * FROM relation_types WHERE code = $1', [input.relation_type]);
+  if (!type?.is_active) {
     throw invalid('unknown_relation_type', `relation_type ${input.relation_type} is not an active relation type`);
   }
   await requireResource(tx, input.source_resource_id, { label: 'source resource' });

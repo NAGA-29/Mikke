@@ -32,11 +32,12 @@ pnpm migrate      # ルートの .env を読む
 pnpm dev
 pnpm test             # mikke_test を毎回作り直す
 pnpm typecheck
+pnpm check:api       # API の lint / format（Biome・検査のみ）。直すときは pnpm format:api
 pnpm test:e2e         # 初回のみ pnpm --filter @mikke/e2e install-browsers。5432 の PostgreSQL 18 を使う
 pnpm --filter @mikke/api token <actor_id> mikke:read mikke:write
 ```
 
-コミット前に `pnpm typecheck` と `pnpm test` を必ず通す。UI を変えたときは `pnpm test:e2e` も通す（CI でも実行される）。
+コミット前に `pnpm typecheck` と `pnpm test` を必ず通す。`git push` 時は husky の pre-push が API の lint / format とテストを自動実行する（PostgreSQL 18 が必要。`--no-verify` は緊急時のみ）。UI を変えたときは `pnpm test:e2e` も通す（CI でも実行される）。
 
 ## 構成
 

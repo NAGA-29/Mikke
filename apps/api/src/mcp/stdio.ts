@@ -22,9 +22,15 @@ async function main() {
       await server.close();
       await pool.end();
     };
-    server.server.onclose = () => { void shutdown(); };
-    process.once('SIGINT', () => { void shutdown(); });
-    process.once('SIGTERM', () => { void shutdown(); });
+    server.server.onclose = () => {
+      void shutdown();
+    };
+    process.once('SIGINT', () => {
+      void shutdown();
+    });
+    process.once('SIGTERM', () => {
+      void shutdown();
+    });
     await server.connect(transport);
   } catch {
     await pool.end();
