@@ -12,6 +12,7 @@ import { EolDashboard } from './pages/EolDashboard';
 import { EolChangeRequests } from './pages/EolChangeRequests';
 import { AuditLogs } from './pages/AuditLogs';
 import { Diagrams } from './pages/Diagrams';
+import { Docs } from './pages/Docs';
 
 const DiagramCanvas = lazy(() => import('./pages/DiagramCanvas').then((m) => ({ default: m.DiagramCanvas })));
 
@@ -32,6 +33,7 @@ export function App() {
       ['/software/release-cycles', 'サポート期限', 'release-cycles'], ['/eol', 'EOL 状況', 'eol'],
     ] },
     { label: '運用', items: [['/software/lifecycle-event-change-requests', '承認待ち', 'approvals'], ['/audit-logs', '監査ログ', 'audit-logs']] },
+    { label: 'ヘルプ', items: [['/docs', 'ドキュメント', 'docs']] },
   ];
   return (
     <div className="layout">
@@ -61,6 +63,7 @@ export function App() {
           <Route path="/eol" element={<EolDashboard />} />
           <Route path="/software/lifecycle-event-change-requests" element={<EolChangeRequests />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/docs" element={<Docs />} />
           <Route path="/diagrams" element={<Diagrams />} />
           <Route path="/diagrams/:id" element={<Suspense fallback={<LoadingState>Canvasを読み込み中…</LoadingState>}><DiagramCanvas /></Suspense>} />
         </Routes>
