@@ -115,6 +115,12 @@ describe('graph source of truth', () => {
     await place(d.id, f.r.id);
     const g = await graph(d.id);
     expect(g.nodes).toHaveLength(4);
+    // 形状の出し分け用の細分類。サービスは service_kind、コンピュートは asset_kind、それ以外は null
+    const kindOf = (id: string) => g.nodes.find((n: any) => n.resource_id === id).kind;
+    expect(kindOf(f.s.id)).toBe('database');
+    expect(kindOf(f.c.id)).toEqual(expect.any(String));
+    expect(kindOf(f.a.id)).toBeNull();
+    expect(kindOf(f.r.id)).toBeNull();
     expect(g.edges).toEqual([
       expect.objectContaining({ edge_kind: 'app_repository', edge_record_id: f.link.id, source_resource_id: f.a.id, target_resource_id: f.r.id, label: 'sourced_from', details: { purpose: 'source' } }),
       expect.objectContaining({ edge_kind: 'deployment', edge_record_id: f.deployment.id, source_resource_id: f.a.id, target_resource_id: f.c.id, label: 'deployed_on', details: { environment: 'prod', status: 'active', revision: null } }),

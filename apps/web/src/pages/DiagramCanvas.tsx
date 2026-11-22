@@ -5,14 +5,17 @@ import { Background, Controls, MiniMap, ReactFlow, useNodesState, useEdgesState,
 import '@xyflow/react/dist/style.css';
 import { api } from '../api';
 import { CanvasError } from '../components/CanvasError';
+import { AssetNode } from '../components/AssetNode';
+import { CanvasLegend } from '../components/CanvasLegend';
 import { CanonicalEdge } from '../components/CanonicalEdge';
 import { ConnectionDialog } from '../components/ConnectionDialog';
 import { EdgeDeleteDialog } from '../components/EdgeDeleteDialog';
 import { ResourcePicker } from '../components/ResourcePicker';
-import { EDGE_COLOR, EDGE_LABEL, NODE_COLOR, edgeId, graphToFlow, savedViewport, type CanvasEdge, type CanvasNode, type Graph, type GraphEdge, type GraphNode, type HiddenEdge } from '../lib/graph';
+import { EDGE_LABEL, NODE_COLOR, edgeId, graphToFlow, savedViewport, type CanvasEdge, type CanvasNode, type Graph, type GraphEdge, type GraphNode, type HiddenEdge } from '../lib/graph';
 import { usePlacementPersistence } from '../lib/usePlacementPersistence';
 
 const edgeTypes = { canonical: CanonicalEdge };
+const nodeTypes = { asset: AssetNode };
 
 export function DiagramCanvas() {
   const { id } = useParams();
@@ -83,9 +86,9 @@ function Canvas({ id }: { id: string }) {
     {loading && <LoadingState />}
     {graph && <>
       <p>右の端子から接続先の左の端子へドラッグして登録。ノード・線を選ぶと操作を表示します。位置はドラッグ後に自動保存されます。</p>
-      <div className="canvas-legend">{Object.entries(EDGE_LABEL).map(([kind, label]) => <span key={kind} style={{ borderColor: EDGE_COLOR[kind as keyof typeof EDGE_COLOR] }}>{label} ({kind})</span>)}</div>
+      <CanvasLegend />
       <div ref={surface} className="canvas-surface" aria-label="構成図 Canvas">
-        <ReactFlow<CanvasNode, CanvasEdge> nodes={nodes} edges={edges} edgeTypes={edgeTypes}
+        <ReactFlow<CanvasNode, CanvasEdge> nodes={nodes} edges={edges} edgeTypes={edgeTypes} nodeTypes={nodeTypes}
           onInit={(instance) => { flow.current = instance; }}
           onNodesChange={(changes) => {
             onNodesChange(changes);

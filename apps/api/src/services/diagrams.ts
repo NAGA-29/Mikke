@@ -154,8 +154,13 @@ export async function getGraph(db: Queryable, query: unknown) {
   // 1文で取得し、ノード・エッジ・図の存在を同一スナップショットで評価する。
   const result = await one(db, `WITH nodes AS (
     SELECT n.*, r.name, r.resource_type, r.lifecycle_status, r.archived_at,
-           (r.archived_at IS NOT NULL) AS archived
-      FROM diagram_nodes n JOIN resources r ON r.id = n.resource_id WHERE n.diagram_id = $1
+           (r.archived_at IS NOT NULL) AS archived,
+           -- 表示用の細分類（形状の出し分け）。正本は各詳細テーブルで、ここでは複製せず参照のみ
+           coalesce(ca.asset_kind, si.service_kind) AS kind
+      FROM diagram_nodes n JOIN resources r ON r.id = n.resource_id
+      LEFT JOIN compute_assets ca ON ca.resource_id = r.id
+      LEFT JOIN service_instances si ON si.resource_id = r.id
+     WHERE n.diagram_id = $1
   ), edges AS (${GRAPH_EDGES_SQL})
   SELECT to_jsonb(d) AS diagram,
     (SELECT coalesce(jsonb_agg(n ORDER BY n.id), '[]'::jsonb) FROM nodes n) AS nodes,
