@@ -66,6 +66,12 @@ MIKKE_API_TOKENS=[{"actor_id":"agent:eol-researcher","token_sha256":"<64桁の16
 
 ### 4. 起動・テスト
 
+サンプルデータの投入（任意。localhost のDBかつ資産が0件のときだけ実行される。架空の構成）:
+
+```bash
+pnpm --filter @mikke/api seed:dev
+```
+
 e2e（Playwright）は初回のみ `pnpm --filter @mikke/e2e install-browsers`。`pnpm test:e2e` が使い捨てDB `mikke_e2e` を作り直し、API と Web を自動で起動する（5432 の PostgreSQL に接続。変更は `E2E_ADMIN_DATABASE_URL`）。
 
 
