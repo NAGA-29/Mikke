@@ -28,6 +28,14 @@ pre { background: #f5f7fa; padding: 12px; overflow: auto; }
 .resource-form small { color: #616e7c; }
 .form-actions { display: flex; align-items: center; gap: 16px; }
 .resource-form .error { overflow-wrap: anywhere; }
+.resource-picker { display: grid; gap: 6px; }
+.reference-editor { margin-top: 20px; }
+.reference-table { overflow-x: auto; margin: 16px 0 24px; }
+.reference-table caption { text-align: left; font-weight: 600; padding-bottom: 8px; }
+.reference-table td { overflow-wrap: anywhere; min-width: 100px; }
+.reference-table fieldset { min-width: 280px; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
 @media (max-width: 700px) {
   .layout { grid-template-columns: 140px minmax(0, 1fr); }
   main { padding: 16px; }

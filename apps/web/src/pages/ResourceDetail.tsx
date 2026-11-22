@@ -1,28 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource } from '../api';
-
-type Refs = Record<string, unknown>;
+import { ResourceReferences } from '../components/ResourceReferences';
 
 export function ResourceDetail() {
   const { id } = useParams();
   const [res, setRes] = useState<Resource | null>(null);
-  const [refs, setRefs] = useState<Refs | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
     setRes(null);
-    setRefs(null);
     setError(null);
-    Promise.all([api<Resource>(`/resources/${id}`), api<Refs>(`/resources/${id}/references`)])
-      .then(([r, f]) => { if (live) { setRes(r); setRefs(f); } })
+    api<Resource>(`/resources/${id}`)
+      .then((r) => { if (live) setRes(r); })
       .catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
   }, [id]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!res) return <p>読み込み中…</p>;
+  if (!res || res.id !== id) return <p>読み込み中…</p>;
 
   return (
     <section>
@@ -38,8 +35,7 @@ export function ResourceDetail() {
       </dl>
       <h3>種別ごとの詳細</h3>
       <pre>{JSON.stringify(res.detail, null, 2)}</pre>
-      <h3>参照</h3>
-      <pre>{JSON.stringify(refs, null, 2)}</pre>
+      <ResourceReferences key={res.id} resource={res} />
     </section>
   );
 }
