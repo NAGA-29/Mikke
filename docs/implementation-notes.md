@@ -110,3 +110,12 @@
 - リポジトリ内の組織を特定できる表記を置き換えた。会社名は「社内専用」「自社」、連携先の製品名は「脆弱性管理基盤」「別の連携システム」、GitHub のアカウント名入りURLは削除した。対象は README、CLAUDE.md、ログイン画面、アプリ内ドキュメント、テストのURL（架空の `example-org`）。
 - 正本である `docs/db-basic-design-v1.1.md` も、会社名の箇所だけ最小限に書き換えた（仕様の内容は変更していない）。ユーザーの明示的な指示による変更。
 - 過去のコミット履歴には元の表記が残っている（履歴の書き換えは行っていない）。
+
+## Canvas の形状・線種（2026-11-22）
+
+- ノードの形状は保存しない。資産種別と細分類（`compute_assets.asset_kind` / `service_instances.service_kind`）から表示時に導出する（`web/src/lib/graph.ts` の `nodeShape`）。DB スキーマと設計の正本は変更していない。
+- そのため `GET /graph` のノードに表示用の `kind`（コンピュートは asset_kind、サービスは service_kind、他は null）を追加した。正本の複製ではなく、JOIN で参照するだけ。
+- エッジの線種・矢印は `edge_kind` と relation_type（`label`）から導出する（`edgeLook`）。波線は発行・購読（publishes_to / consumes_from）。凡例も同じ関数から描く。
+- 線の線種・矢印は、図ごとに上書きできる（`diagram_edge_styles`、マイグレーション 0003）。正本の関係は変えず、他の図にも影響しない。未設定は上記の既定。API は `GET/PUT /diagrams/{id}/edge-styles`、`DELETE /diagrams/{id}/edge-styles/{kind}/{recordId}`（write）。`GET /graph` の各エッジに `style`（未設定は null）を含める。ロック順は hidden-edges と同じ（正本 → 図）。変更は監査ログ（`diagram_edge_style`）に残り、図の削除時は削除前の内容を監査に残す。
+- 正本の関係が削除されると上書き行は孤児として残る（hidden-edges と同じ扱い）。`db/checks/orphan_diagram_edge_styles.sql` で検出できる。
+- ノード形状の上書きは入れていない（資産の細分類から導出するのみ）。

@@ -115,6 +115,12 @@ describe('graph source of truth', () => {
     await place(d.id, f.r.id);
     const g = await graph(d.id);
     expect(g.nodes).toHaveLength(4);
+    // 形状の出し分け用の細分類。サービスは service_kind、コンピュートは asset_kind、それ以外は null
+    const kindOf = (id: string) => g.nodes.find((n: any) => n.resource_id === id).kind;
+    expect(kindOf(f.s.id)).toBe('database');
+    expect(kindOf(f.c.id)).toEqual(expect.any(String));
+    expect(kindOf(f.a.id)).toBeNull();
+    expect(kindOf(f.r.id)).toBeNull();
     expect(g.edges).toEqual([
       expect.objectContaining({ edge_kind: 'app_repository', edge_record_id: f.link.id, source_resource_id: f.a.id, target_resource_id: f.r.id, label: 'sourced_from', details: { purpose: 'source' } }),
       expect.objectContaining({ edge_kind: 'deployment', edge_record_id: f.deployment.id, source_resource_id: f.a.id, target_resource_id: f.c.id, label: 'deployed_on', details: { environment: 'prod', status: 'active', revision: null } }),
@@ -236,11 +242,63 @@ describe('diagram and graph permissions', () => {
       ['DELETE', `/diagrams/${d.id}/nodes/${n.id}`, undefined],
       ['POST', `/diagrams/${d.id}/hidden-edges`, { edge_kind: 'relation', edge_record_id: f.relation.id }],
       ['DELETE', `/diagrams/${d.id}/hidden-edges/relation/${f.relation.id}`, undefined],
+      ['PUT', `/diagrams/${d.id}/edge-styles`, { edge_kind: 'relation', edge_record_id: f.relation.id, line_style: 'wavy', arrow_style: 'open' }],
+      ['DELETE', `/diagrams/${d.id}/edge-styles/relation/${f.relation.id}`, undefined],
       ['DELETE', `/deployments/${f.deployment.id}`, undefined],
     ] as const) {
       expect((await call(method, path, { as: 'reader', body })).status).toBe(403);
     }
     expect(await logs('diagram', d.id)).toHaveLength(1);
     expect((await call('POST', '/diagrams', { as: 'admin', body: { name: 'admin' } })).status).toBe(201);
+  });
+});
+
+describe('edge styles (per-diagram display override)', () => {
+  const put = (d: string, kind: string, id: string, line_style = 'wavy', arrow_style = 'open') =>
+    call('PUT', `/diagrams/${d}/edge-styles`, { body: { edge_kind: kind, edge_record_id: id, line_style, arrow_style } });
+  const relationStyle = async (d: string, id: string) => (await graph(d)).edges.find((e: any) => e.edge_record_id === id).style;
+
+  it('overrides only the given diagram, upserts, resets, and audits; canonical data is untouched', async () => {
+    const f = await fixture();
+    const [d1, d2] = [await diagram('one'), await diagram('two')];
+    for (const d of [d1, d2]) { await place(d.id, f.a.id); await place(d.id, f.s.id); }
+    expect(await relationStyle(d1.id, f.relation.id)).toBeNull();
+
+    expect((await put(d1.id, 'relation', f.relation.id)).status).toBe(200);
+    expect(await relationStyle(d1.id, f.relation.id)).toEqual({ line_style: 'wavy', arrow_style: 'open' });
+    expect(await relationStyle(d2.id, f.relation.id)).toBeNull();
+
+    await put(d1.id, 'relation', f.relation.id, 'dotted', 'none');
+    expect(await relationStyle(d1.id, f.relation.id)).toEqual({ line_style: 'dotted', arrow_style: 'none' });
+    expect(await ok('GET', `/diagrams/${d1.id}/edge-styles`)).toHaveLength(1);
+
+    // 正本の関係は変わらない
+    expect((await graph(d1.id)).edges.find((e: any) => e.edge_record_id === f.relation.id).label).toBe('uses');
+
+    expect((await call('DELETE', `/diagrams/${d1.id}/edge-styles/relation/${f.relation.id}`)).status).toBe(204);
+    expect(await relationStyle(d1.id, f.relation.id)).toBeNull();
+    expect((await call('DELETE', `/diagrams/${d1.id}/edge-styles/relation/${f.relation.id}`)).status).toBe(204);
+    expect((await logs('diagram_edge_style', d1.id)).map((l: any) => l.action)).toEqual(['delete', 'update', 'create']);
+  });
+
+  it('validates input and the canonical edge', async () => {
+    const f = await fixture();
+    const d = await diagram();
+    expect((await put(d.id, 'relation', f.relation.id, 'zigzag')).status).toBe(422);
+    expect((await put(d.id, 'relation', f.relation.id, 'solid', 'big')).status).toBe(422);
+    expect((await put(d.id, 'bogus', f.relation.id)).status).toBe(422);
+    expect((await put(d.id, 'relation', missing)).status).toBe(404);
+    expect((await put(missing, 'relation', f.relation.id)).status).toBe(404);
+    expect((await call('PUT', `/diagrams/${d.id}/edge-styles`, { body: { edge_kind: 'relation', edge_record_id: f.relation.id, line_style: 'solid', arrow_style: 'open', extra: 1 } })).status).toBe(422);
+  });
+
+  it('is removed with the diagram and recorded in its audit trail', async () => {
+    const f = await fixture();
+    const d = await diagram();
+    await put(d.id, 'relation', f.relation.id);
+    await ok('DELETE', `/diagrams/${d.id}`);
+    expect((await pool.query('SELECT 1 FROM diagram_edge_styles WHERE diagram_id = $1', [d.id])).rowCount).toBe(0);
+    const del = (await logs('diagram', d.id)).find((l: any) => l.action === 'delete');
+    expect(del.before_data.edge_styles).toHaveLength(1);
   });
 });
