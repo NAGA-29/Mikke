@@ -6,10 +6,14 @@ export interface Diagram { id: string; name: string; viewport: Partial<Viewport>
 export interface GraphNode {
   id: string; resource_id: string; name: string; resource_type: ResourceType;
   position_x: number; position_y: number; archived: boolean;
+  /** 細分類（compute は asset_kind、service_instance は service_kind、他は null）。形状の出し分けにのみ使う */
+  kind: string | null;
 }
 export interface GraphEdge {
   edge_kind: EdgeKind; edge_record_id: string; source_resource_id: string; target_resource_id: string;
   label: string; details: { environment?: string; status?: string; purpose?: string };
+  /** この図だけの上書き（未設定は null）。 */
+  style?: { line_style: LineKind; arrow_style: ArrowKind } | null;
 }
 export interface Graph { diagram: Diagram; nodes: GraphNode[]; edges: GraphEdge[] }
 export interface HiddenEdge { edge_kind: EdgeKind; edge_record_id: string }
@@ -22,8 +26,57 @@ export const EDGE_COLOR: Record<EdgeKind, string> = {
 export const NODE_COLOR: Record<ResourceType, string> = {
   compute: 'var(--node-compute)', application: 'var(--node-application)', service_instance: 'var(--node-service)', repository: 'var(--node-repository)',
 };
+export type NodeShape = 'server' | 'pill' | 'folder' | 'cylinder' | 'hexagon' | 'parallelogram' | 'double' | 'rounded';
+/** 資産の種別（と細分類）から形状を決める。保存はせず表示時に導出する（正本は資産側） */
+export function nodeShape(type: ResourceType, kind: string | null): NodeShape {
+  if (type === 'compute') return 'server';
+  if (type === 'application') return 'pill';
+  if (type === 'repository') return 'folder';
+  switch (kind) {
+    case 'database': case 'storage': return 'cylinder';
+    case 'cache': return 'hexagon';
+    case 'queue': return 'parallelogram';
+    case 'hosting': return 'double';
+    default: return 'rounded';
+  }
+}
+
+export type LineKind = 'solid' | 'dashed' | 'dotted' | 'wavy';
+export type ArrowKind = 'closed' | 'open' | 'none';
+export interface EdgeLook { line: LineKind; arrow: ArrowKind; width: number; dash?: string; legend: string }
+/** 線種・矢印は関係の種類から導出する。凡例（canvas-legend）にも同じ表を使う */
+export const LINE_LABEL: Record<LineKind, string> = { solid: '実線', dashed: '破線', dotted: '点線', wavy: '波線' };
+export const ARROW_LABEL: Record<ArrowKind, string> = { closed: '塗り矢印', open: '開き矢印', none: '矢印なし' };
+const DASH: Record<LineKind, string | undefined> = { solid: undefined, dashed: '8 5', dotted: '2 5', wavy: undefined };
+/** 既定の見た目（関係の種類から導出）に、この図の上書きがあれば重ねる */
+export function edgeLook(e: Pick<GraphEdge, 'edge_kind' | 'label'> & { style?: GraphEdge['style'] }): EdgeLook {
+  const base = defaultLook(e);
+  if (!e.style) return base;
+  return { ...base, line: e.style.line_style, arrow: e.style.arrow_style, dash: DASH[e.style.line_style], legend: '' };
+}
+export function defaultLook(e: Pick<GraphEdge, 'edge_kind' | 'label'>): EdgeLook {
+  if (e.edge_kind === 'deployment') return { line: 'dashed', arrow: 'closed', width: 2, dash: '8 5', legend: '破線＋塗り矢印' };
+  if (e.edge_kind === 'hosting') return { line: 'solid', arrow: 'none', width: 3.5, legend: '太線（矢印なし）' };
+  if (e.edge_kind === 'app_repository') return { line: 'dotted', arrow: 'open', width: 2, dash: '2 5', legend: '点線＋開き矢印' };
+  switch (e.label) {
+    case 'publishes_to': case 'consumes_from': return { line: 'wavy', arrow: 'closed', width: 2, legend: '波線＋塗り矢印' };
+    case 'depends_on': return { line: 'dashed', arrow: 'open', width: 2, dash: '3 3', legend: '短い破線＋開き矢印' };
+    case 'uses': return { line: 'solid', arrow: 'open', width: 1.75, legend: '細線＋開き矢印' };
+    default: return { line: 'solid', arrow: 'closed', width: 2, legend: '実線＋塗り矢印' };
+  }
+}
+export const RELATION_LEGEND: { label: string; sample: Pick<GraphEdge, 'edge_kind' | 'label'> }[] = [
+  { label: '接続（connects_to）', sample: { edge_kind: 'relation', label: 'connects_to' } },
+  { label: '利用（uses）', sample: { edge_kind: 'relation', label: 'uses' } },
+  { label: '依存（depends_on）', sample: { edge_kind: 'relation', label: 'depends_on' } },
+  { label: '発行・購読（publishes_to / consumes_from）', sample: { edge_kind: 'relation', label: 'publishes_to' } },
+  { label: 'デプロイ', sample: { edge_kind: 'deployment', label: 'deployed_on' } },
+  { label: 'ホスト', sample: { edge_kind: 'hosting', label: 'hosted_on' } },
+  { label: 'アプリ↔Repo', sample: { edge_kind: 'app_repository', label: 'sourced_from' } },
+];
+
 export type CanvasNode = Node<{ label: string; resource: GraphNode }>;
-export type CanvasEdge = Edge<{ canonical: GraphEdge; lane: number }>;
+export type CanvasEdge = Edge<{ canonical: GraphEdge; lane: number; wavy: boolean }>;
 export const edgeId = (edge: HiddenEdge) => `${edge.edge_kind}:${edge.edge_record_id}`;
 export function graphToFlow(graph: Graph): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const pairKey = (e: GraphEdge) => [e.source_resource_id, e.target_resource_id].sort().join(':');
@@ -35,21 +88,26 @@ export function graphToFlow(graph: Graph): { nodes: CanvasNode[]; edges: CanvasE
   return {
     nodes: graph.nodes.map((n) => ({
       id: n.resource_id, position: { x: n.position_x, y: n.position_y },
+      type: 'asset',
       data: { label: `${RESOURCE_TYPE_LABEL[n.resource_type]}\n${n.name}${n.archived ? '\n⚠ アーカイブ済み・要確認' : ''}`, resource: n },
       sourcePosition: Position.Right, targetPosition: Position.Left,
       className: `canvas-node canvas-node-${n.resource_type}${n.archived ? ' canvas-node-archived' : ''}`,
-      style: { background: NODE_COLOR[n.resource_type] },
     })),
-    edges: graph.edges.map((e) => ({
+    edges: graph.edges.map((e) => {
+      const look = edgeLook(e);
+      const inactive = e.details.status === 'inactive';
+      return {
       id: edgeId(e), source: e.source_resource_id, target: e.target_resource_id,
       type: 'canonical',
-      data: { canonical: e, lane: groups.get(pairKey(e))!.indexOf(e) - (groups.get(pairKey(e))!.length - 1) / 2 },
+      data: { canonical: e, lane: groups.get(pairKey(e))!.indexOf(e) - (groups.get(pairKey(e))!.length - 1) / 2, wavy: look.line === 'wavy' },
       label: `${EDGE_LABEL[e.edge_kind]}: ${e.label}${e.details.environment ? ` / ${e.details.environment}` : ''}${e.details.status ? ` / ${e.details.status}` : ''}${e.details.purpose ? ` / ${e.details.purpose}` : ''}`,
-      style: { stroke: EDGE_COLOR[e.edge_kind], strokeWidth: 2, strokeDasharray: e.details.status === 'inactive' ? '6 4' : undefined },
+      // 無効（inactive）なデプロイは薄く表示し、線種は維持する
+      style: { stroke: EDGE_COLOR[e.edge_kind], strokeWidth: look.width, strokeDasharray: look.dash, strokeLinecap: 'round' as const, opacity: inactive ? 0.45 : 1 },
       labelStyle: { fill: EDGE_COLOR[e.edge_kind] },
-      markerEnd: { type: MarkerType.ArrowClosed, color: EDGE_COLOR[e.edge_kind] },
+      markerEnd: look.arrow === 'none' ? undefined : { type: look.arrow === 'open' ? MarkerType.Arrow : MarkerType.ArrowClosed, color: EDGE_COLOR[e.edge_kind] },
       reconnectable: false,
-    })),
+      };
+    }),
   };
 }
 // Suggestions only: users can choose any kind; the API validates the actual resource details.

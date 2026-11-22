@@ -19,8 +19,18 @@ describe('auth', () => {
 describe('resources', () => {
   it('registers PostgreSQL and Redis on one VPS as separate service instances (MVP受け入れ基準1)', async () => {
     const vps = await create.compute('sakura-vps-01', { hostname: 'vps01', provider: 'Sakura', public_ip: '203.0.113.10' });
-    const pg = await create.service('postgres-main', { service_kind: 'database', engine: 'PostgreSQL', engine_version: '18.1', host_compute_id: vps.id });
-    const redis = await create.service('redis-cache', { service_kind: 'cache', engine: 'Redis', engine_version: '7.4.2', host_compute_id: vps.id });
+    const pg = await create.service('postgres-main', {
+      service_kind: 'database',
+      engine: 'PostgreSQL',
+      engine_version: '18.1',
+      host_compute_id: vps.id,
+    });
+    const redis = await create.service('redis-cache', {
+      service_kind: 'cache',
+      engine: 'Redis',
+      engine_version: '7.4.2',
+      host_compute_id: vps.id,
+    });
     expect(pg.id).not.toBe(redis.id);
     expect(pg.detail.host_compute_id).toBe(vps.id);
 
@@ -65,9 +75,9 @@ describe('resources', () => {
 
   it('enforces resource_type/detail consistency at the DB level', async () => {
     const app = await create.app('api');
-    await expect(
-      pool.query(`INSERT INTO compute_assets (resource_id, asset_kind) VALUES ($1, 'vps')`, [app.id]),
-    ).rejects.toThrow(/foreign key/);
+    await expect(pool.query(`INSERT INTO compute_assets (resource_id, asset_kind) VALUES ($1, 'vps')`, [app.id])).rejects.toThrow(
+      /foreign key/,
+    );
   });
 
   it('normalizes and deduplicates repository URLs', async () => {
@@ -85,7 +95,9 @@ describe('resources', () => {
 
   it('updates detail fields and records before/after in audit_logs', async () => {
     const vps = await create.compute('vps', { os_name: 'Ubuntu', os_version: '22.04' });
-    const updated = await ok('PATCH', `/resources/${vps.id}`, { body: { lifecycle_status: 'maintenance', detail: { os_version: '24.04' } } });
+    const updated = await ok('PATCH', `/resources/${vps.id}`, {
+      body: { lifecycle_status: 'maintenance', detail: { os_version: '24.04' } },
+    });
     expect(updated.lifecycle_status).toBe('maintenance');
     expect(updated.detail.os_version).toBe('24.04');
     expect(updated.detail.asset_kind).toBe('vps');
@@ -138,7 +150,9 @@ describe('archive / restore (MVP受け入れ基準6)', () => {
     expect((await ok('GET', '/resources?type=service_instance&include_archived=true')).items).toHaveLength(1);
 
     // アーカイブ済みへの新規関係・更新は拒否
-    const r = await call('POST', '/relations', { body: { source_resource_id: api.id, target_resource_id: redis.id, relation_type: 'depends_on' } });
+    const r = await call('POST', '/relations', {
+      body: { source_resource_id: api.id, target_resource_id: redis.id, relation_type: 'depends_on' },
+    });
     expect(r.status).toBe(409);
     expect((await call('PATCH', `/resources/${redis.id}`, { body: { name: 'x' } })).status).toBe(409);
 
@@ -155,8 +169,10 @@ describe('resource summary（一覧のサマリー用の件数）', () => {
   it('counts active/archived per type, including types with zero rows', async () => {
     expect(await ok('GET', '/resources/summary')).toEqual({
       by_type: {
-        compute: { active: 0, archived: 0 }, application: { active: 0, archived: 0 },
-        service_instance: { active: 0, archived: 0 }, repository: { active: 0, archived: 0 },
+        compute: { active: 0, archived: 0 },
+        application: { active: 0, archived: 0 },
+        service_instance: { active: 0, archived: 0 },
+        repository: { active: 0, archived: 0 },
       },
       total: { active: 0, archived: 0 },
     });

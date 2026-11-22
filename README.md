@@ -84,6 +84,8 @@ pnpm dev:web      # Web UI（http://localhost:5173）
 pnpm test
 ```
 
+API の lint / format（Biome）は `pnpm check:api`、自動整形は `pnpm format:api`。`pnpm install` で husky が入り、`git push` の前に API の lint / format とテストが自動で走る（DB が必要。緊急時のみ `git push --no-verify`）。CI でも同じ検査を実行する。
+
 ## API（`/api/v1`、`Authorization: Bearer <token>`）
 
 | メソッド | パス | スコープ |
@@ -100,6 +102,7 @@ pnpm test
 | GET / POST | `/software/lifecycle-event-change-requests`, `/{id}/approve`, `/{id}/reject` | read / eol:approve |
 | PUT | `/software/installations/{id}/release-cycle`, `/services/{id}/release-cycle`, `/compute/{id}/os-release-cycle` | write |
 | GET | `/eol/status` | read |
+| GET / PUT / DELETE | `/diagrams/{id}/edge-styles`（この図だけの線種・矢印の上書き） | read / write |
 | GET | `/audit-logs` | read |
 
 ## MCP（stdio）

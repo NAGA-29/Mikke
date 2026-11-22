@@ -5,14 +5,17 @@ import { Background, Controls, MiniMap, ReactFlow, useNodesState, useEdgesState,
 import '@xyflow/react/dist/style.css';
 import { api } from '../api';
 import { CanvasError } from '../components/CanvasError';
+import { AssetNode } from '../components/AssetNode';
+import { CanvasLegend } from '../components/CanvasLegend';
 import { CanonicalEdge } from '../components/CanonicalEdge';
 import { ConnectionDialog } from '../components/ConnectionDialog';
 import { EdgeDeleteDialog } from '../components/EdgeDeleteDialog';
 import { ResourcePicker } from '../components/ResourcePicker';
-import { EDGE_COLOR, EDGE_LABEL, NODE_COLOR, edgeId, graphToFlow, savedViewport, type CanvasEdge, type CanvasNode, type Graph, type GraphEdge, type GraphNode, type HiddenEdge } from '../lib/graph';
+import { ARROW_LABEL, EDGE_LABEL, LINE_LABEL, edgeLook, type ArrowKind, type LineKind, NODE_COLOR, edgeId, graphToFlow, savedViewport, type CanvasEdge, type CanvasNode, type Graph, type GraphEdge, type GraphNode, type HiddenEdge } from '../lib/graph';
 import { usePlacementPersistence } from '../lib/usePlacementPersistence';
 
 const edgeTypes = { canonical: CanonicalEdge };
+const nodeTypes = { asset: AssetNode };
 
 export function DiagramCanvas() {
   const { id } = useParams();
@@ -50,7 +53,9 @@ function Canvas({ id }: { id: string }) {
     if (!mounted.current || signal?.aborted) return;
     const converted = graphToFlow(next);
     setGraph(next); setNodes(converted.nodes); setEdges(converted.edges); setHidden(hiddenRows);
-    setSelectedNode(null); setSelectedEdge(null);
+    setSelectedNode(null);
+    // 線の見た目を変えた後も、同じ線を選択したままにする
+    setSelectedEdge((cur) => (cur && next.edges.find((e) => edgeId(e) === edgeId(cur))) || null);
   }
   async function mutate(action: () => Promise<unknown>) {
     setBusy(true); setError(null);
@@ -83,9 +88,9 @@ function Canvas({ id }: { id: string }) {
     {loading && <LoadingState />}
     {graph && <>
       <p>右の端子から接続先の左の端子へドラッグして登録。ノード・線を選ぶと操作を表示します。位置はドラッグ後に自動保存されます。</p>
-      <div className="canvas-legend">{Object.entries(EDGE_LABEL).map(([kind, label]) => <span key={kind} style={{ borderColor: EDGE_COLOR[kind as keyof typeof EDGE_COLOR] }}>{label} ({kind})</span>)}</div>
+      <CanvasLegend />
       <div ref={surface} className="canvas-surface" aria-label="構成図 Canvas">
-        <ReactFlow<CanvasNode, CanvasEdge> nodes={nodes} edges={edges} edgeTypes={edgeTypes}
+        <ReactFlow<CanvasNode, CanvasEdge> nodes={nodes} edges={edges} edgeTypes={edgeTypes} nodeTypes={nodeTypes}
           onInit={(instance) => { flow.current = instance; }}
           onNodesChange={(changes) => {
             onNodesChange(changes);
@@ -135,6 +140,9 @@ function Canvas({ id }: { id: string }) {
         {selectedEdge && <div className="canvas-confirm"><h3>{EDGE_LABEL[selectedEdge.edge_kind]}: {selectedEdge.label}</h3>
           <p>{name(selectedEdge.source_resource_id)} → {name(selectedEdge.target_resource_id)}</p>
           <p>「隠す」はこの図のみ。「正本の削除・解除」は全図・MCPに反映されます。</p>
+          <EdgeStyleEditor edge={selectedEdge} disabled={locked} onChange={(line_style, arrow_style) => void mutate(() => api(`${base}/edge-styles`, {
+            method: 'PUT', json: { edge_kind: selectedEdge.edge_kind, edge_record_id: selectedEdge.edge_record_id, line_style, arrow_style },
+          }))} onReset={() => void mutate(() => api(`${base}/edge-styles/${selectedEdge.edge_kind}/${selectedEdge.edge_record_id}`, { method: 'DELETE' }))} />
           <div className="form-actions"><Button disabled={locked} onClick={() => void mutate(() => api(`${base}/hidden-edges`, {
             method: 'POST', json: { edge_kind: selectedEdge.edge_kind, edge_record_id: selectedEdge.edge_record_id },
           }))}>この図で隠す</Button>
@@ -149,4 +157,18 @@ function Canvas({ id }: { id: string }) {
     {connection && <ConnectionDialog {...connection} onSaved={afterCanonicalChange} onClose={() => setConnection(null)} />}
     {deleting && <EdgeDeleteDialog edge={deleting} sourceName={name(deleting.source_resource_id)} targetName={name(deleting.target_resource_id)} onDeleted={afterCanonicalChange} onClose={() => setDeleting(null)} />}
   </section>;
+}
+
+/** この図だけの線の見た目（線種・矢印）。正本の関係は変えない */
+function EdgeStyleEditor({ edge, disabled, onChange, onReset }: {
+  edge: GraphEdge; disabled: boolean; onChange: (line: LineKind, arrow: ArrowKind) => void; onReset: () => void;
+}) {
+  const look = edgeLook(edge);
+  return <fieldset className="edge-style" disabled={disabled}><legend>この図での線の見た目</legend>
+    <label>線種<select data-testid="edge-line" value={look.line} onChange={(e) => onChange(e.target.value as LineKind, look.arrow)}>
+      {Object.entries(LINE_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+    <label>矢印<select data-testid="edge-arrow" value={look.arrow} onChange={(e) => onChange(look.line, e.target.value as ArrowKind)}>
+      {Object.entries(ARROW_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+    {edge.style && <Button type="button" data-testid="edge-style-reset" onClick={onReset}>既定に戻す</Button>}
+  </fieldset>;
 }

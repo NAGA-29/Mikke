@@ -12,6 +12,12 @@
     "dev:web": "pnpm --filter @mikke/web dev",
     "test": "pnpm --filter @mikke/api test",
     "test:e2e": "pnpm --filter @mikke/e2e test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "prepare": "husky",
+    "check:api": "pnpm --filter @mikke/api check",
+    "format:api": "pnpm --filter @mikke/api format"
+  },
+  "devDependencies": {
+    "husky": "9.1.7"
   }
 }

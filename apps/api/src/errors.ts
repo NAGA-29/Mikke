@@ -9,8 +9,7 @@ export class AppError extends Error {
   }
 }
 
-export const notFound = (what: string, id?: string) =>
-  new AppError(404, 'not_found', id ? `${what} ${id} not found` : `${what} not found`);
+export const notFound = (what: string, id?: string) => new AppError(404, 'not_found', id ? `${what} ${id} not found` : `${what} not found`);
 export const conflict = (code: string, message: string, details?: unknown) => new AppError(409, code, message, details);
 export const invalid = (code: string, message: string, details?: unknown) => new AppError(422, code, message, details);
 export const forbidden = (code: string, message: string, details?: unknown) => new AppError(403, code, message, details);
