@@ -1,6 +1,6 @@
 # Mikke TODO
 
-最終更新: 2026-11-22（Step 2 ソフトウェア・EOL・承認・管理操作・監査 UI実装）
+最終更新: 2026-11-22（Step 3 Graph / Diagram API実装、Canvasは未着手）
 実装順序は設計書 §10 に従う。完了したらチェックを付け、日付と PR を書き添える。
 
 ## 現在の状態
@@ -35,11 +35,14 @@
 ### Step 3: Graph API と Canvas
 設計書 §5・§6・§10-3。
 
-- [ ] Diagram API：`diagrams` / `diagram_nodes` / `diagram_hidden_edges` の CRUD（テーブルは作成済み、API は未実装）
-- [ ] `GET /graph?diagram_id=` — 配置ノードと、正本から組み立てたエッジ（relation / deployment / hosting / app_repository）を返す。Graph 用に二重保存しない
-- [ ] 表示ルール：両端が図にあるエッジだけ。非表示指定を除外。アーカイブ済みノードは淡色＋警告
+- [x] Diagram API：`diagrams` / `diagram_nodes` / `diagram_hidden_edges` の CRUD（2026-11-22、PR未作成。write権限、監査、正本ロック付き非表示設定）
+- [x] `GET /graph?diagram_id=`（2026-11-22、PR未作成）— 配置ノードと、正本から組み立てたエッジ（relation / deployment / hosting / app_repository）を返す。Graph 用に二重保存しない
+- [x] API表示ルール：両端が図にあるエッジだけ。非表示指定を除外。アーカイブ済みノードに `archived` フラグ（2026-11-22、PR未作成）
+- [ ] Canvas表示：アーカイブ済みノードは淡色＋警告
 - [ ] Canvas（React Flow）：接続の種類に応じて正本を更新する（§6 の 1〜7）
-- [ ] 正本削除時の `diagram_hidden_edges` 掃除は実装済み。孤児を見つける定期チェックの SQL を用意する
+- [x] 正本削除時の `diagram_hidden_edges` 掃除と孤児検査 SQL（`db/checks/orphan_diagram_hidden_edges.sql`、hosting解除も検出。2026-11-22、PR未作成）
+  - §6 の正本操作を確認し、不足していた `DELETE /deployments/{id}` を追加（write権限、監査・非表示掃除は同一TX）。
+  - 統合テスト9件追加。`pnpm typecheck` 通過。`pnpm test` はDB接続が `EPERM`（localhost:5432）となりglobal setupで停止、テスト本体は未実行。
 
 ### Step 4: 読み書き MCP
 設計書 §9・§12.3・§12.4。

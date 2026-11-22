@@ -7,7 +7,7 @@ import { many, one } from '../db/pool.js';
 import { invalid, notFound } from '../errors.js';
 import { insertRow, updateColumns } from '../lib/sql.js';
 import { environment, optStr, optTimestamp, parse, uuid } from '../lib/validation.js';
-import { requireResource } from './common.js';
+import { cleanupHiddenEdges, requireResource } from './common.js';
 
 const fields = {
   target_resource_id: uuid,
@@ -113,4 +113,13 @@ export async function listDeployments(db: Queryable, query: unknown) {
       ORDER BY d.environment, d.created_at, d.id`,
     [f.application_id ?? null, f.target_resource_id ?? null, f.environment ?? null, f.status ?? null],
   );
+}
+
+/** 資産は残し、配置関係の正本と全図の非表示指定を同一TXで削除する（§6-7）。 */
+export async function deleteDeployment(tx: PoolClient, actor: Actor, id: string) {
+  const before = await one<DeploymentRow>(tx, 'SELECT * FROM deployments WHERE id = $1 FOR UPDATE', [id]);
+  if (!before) throw notFound('deployment', id);
+  await tx.query('DELETE FROM deployments WHERE id = $1', [id]);
+  await cleanupHiddenEdges(tx, 'deployment', id);
+  await recordAudit(tx, { actorId: actor.id, action: 'delete', entityType: 'deployment', entityId: id, before });
 }

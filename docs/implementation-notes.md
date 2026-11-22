@@ -59,7 +59,7 @@
 
 ## Step 1 で未実装（後続）
 
-- Graph API・Diagram API（Step 3: Canvas）
+- Canvas UI（Step 3。Graph API・Diagram APIは下記のとおり実装済み）
 - MCP サーバー（Step 4）
 - `application.runtime_requirement` と系列の適合チェック（§12.1 将来）
 
@@ -71,3 +71,16 @@
 - アーカイブ／復元の確認時には既存の参照一覧コンポーネントを読み取り専用で再利用する。最新の `/resources/{id}/references` の取得成功までは確認・実行を無効化し、再取得した場合は確認チェックをリセットする。
 - 監査ログ画面は日時・主体・操作・対象と監査IDを表示し、任意の `before_data` / `after_data` は描画しない。根拠URLは認証情報・認証クエリらしい入力を消去して送信せず、既存データの表示時も隠す。なお、既存APIの `source_url` 用 `httpUrl` は userinfo を拒否するが認証クエリまでは拒否しないため、Web以外の入力経路への対応は別途必要。
 - `pnpm typecheck` と `pnpm --filter @mikke/web build` を確認。開発サーバーが `listen EPERM` で起動できず、ブラウザーでの実操作・実API連携確認は未実施。
+
+
+## Step 3 Graph / Diagram API（2026-11-22）
+
+- 正本の変更はない。`GET /graph?diagram_id=...` は `{ diagram, nodes, edges }` を返す。単一SQLの同一スナップショットで図の存在・ノード・エッジを読む。nodes は配置行に `name` / `resource_type` / `lifecycle_status` / `archived_at` / `archived` を付加する。edges は `edge_kind` / `edge_record_id` / `source_resource_id` / `target_resource_id` / `label` / `details`。CanvasのエッジIDは `${edge_kind}:${edge_record_id}` として組み立て可能。hostingの元IDはサービスのResource ID。
+- §5 の4正本から導出し、両端が配置済みかつ非表示指定のないエッジだけ返す。設計にstatusによる除外指定がないため、inactive deploymentも返し、`details.status` で判別する。deploymentの環境・revision、app_repositoryのpurpose、relationのdescriptionもdetailsに含める。アーカイブ済みノードと既存の関係は維持する。
+- `GET/POST /diagrams`、`GET/PATCH/DELETE /diagrams/{id}`。一覧はlimit（既定100、最大500）/offset。viewportは空オブジェクトか `{x,y,zoom}`（有限数、zoom > 0）。`GET/POST /diagrams/{id}/nodes`、`GET/PATCH/DELETE /diagrams/{id}/nodes/{nodeId}`。PATCHは座標・display_optionsのみ（resource_id差替え不可）。新規配置は `requireResource` のFOR SHAREでアーカイブと直列化。既存配置は資産アーカイブ後も移動・除去可能。display_optionsは既存attributesと同様に秘密キーを拒否。
+- `GET/POST /diagrams/{id}/hidden-edges`、`DELETE /diagrams/{id}/hidden-edges/{edge_kind}/{edge_record_id}`。POST入力は `{edge_kind, edge_record_id}`。集合の設定・解除として冪等（重複POSTも201、解除済みDELETEも204）で、実際の変更のみ監査する。複合PKのため監査のentity_idは図ID、before/afterに完全な複合キーを残す。エンドポイントが未配置でも正本が存在すれば非表示設定可。hostingはhost_compute_idがNULLなら存在しないエッジとして404。
+- 非表示POSTは正本行のロック → 図のFOR UPDATEの順。relation/deploymentは正本行FOR SHARE、app_repositoryはアプリ行FOR SHARE → リンク行FOR SHARE、hostingは `requireResource(..., {allowArchived: true, lock: true})` でサービスのResource行FOR UPDATE。削除・ホスト変更が先なら再検証で404、非表示が先なら正本変更側の掃除に含まれる。配置・非表示の変更と図削除は図のFOR UPDATEで直列化する。ノードPATCH/DELETEは配置行にもFOR UPDATE。
+- 図と表示設定は物理削除可（資産アーカイブとは別）。図削除時はカスケード前のノード・非表示設定も監査のbeforeに含め、資産・関係正本は保持する。すべての書き込みと監査は同一TX。read/writeスコープは既存と同じ。§6-8・既存補強#5どおり、Graph/Diagramへの楽観ロック追加は後日とする。
+- §6 の正本操作の確認結果：relationはPOST/DELETE、app_repositoryはPOST/DELETE、hostingは `PATCH /resources/{service_id}` の `detail.host_compute_id`（NULLで解除）で対応済み。**不足していたdeploymentの関係削除を `DELETE /deployments/{id}` として追加**（§9のAPI列挙に対する追加、§6-7を満たすため）。deployment行FOR UPDATE → 削除・全図の非表示掃除・監査を同一TXで実行し、write権限で許可。既存PATCHによるinactive化も利用可能。既存制約（利用中のapp_repository削除拒否、アーカイブ済みサービスの編集には復元が必要）は維持する。
+- 孤児検査は `db/checks/orphan_diagram_hidden_edges.sql` をDB運用の定期ジョブから実行する想定。読み取り専用で4種類を検査し、hostingのホスト未設定も検出する。ジョブのスケジューリング自体は今回の範囲外。
+- `pnpm typecheck` 通過。`pnpm test` は実DB接続が `EPERM`（localhost:5432）でglobal setupに失敗し、追加9件を含むテスト本体は未実行。既存マイグレーション・依存パッケージ・Webは変更していない。
