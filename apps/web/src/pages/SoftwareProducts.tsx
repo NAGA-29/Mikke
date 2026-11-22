@@ -22,7 +22,7 @@ export function SoftwareProducts() {
       {data.map((p) => <tr key={p.id}><td>{p.name}</td><td>{p.vendor ?? '-'}</td><td>{p.category ?? '-'}</td><td>
         <Button onClick={() => setEditing(p)}>編集</Button>{' '}
         <Link to={`/software/installations?software_product_id=${p.id}`}>導入</Link>{' '}
-        <Link to={`/software/release-cycles?software_product_id=${p.id}`}>リリース系列・イベント</Link>
+        <Link to={`/software/release-cycles?software_product_id=${p.id}`}>サポート期限（系列・イベント）</Link>
       </td></tr>)}{!data.length && <tr><td colSpan={4}><EmptyState>該当なし</EmptyState></td></tr>}
     </tbody></DataTable>}
   </section>;

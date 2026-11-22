@@ -36,7 +36,7 @@ export function EolChangeRequests() {
       <p>イベントID: {r.lifecycle_event_id}</p><p className="preserve-lines">変更理由: {r.request_note ?? '-'}</p>
       <RequestDiff request={r} />
       <p>決裁者: {r.decided_by ?? '-'} / 決裁日時: {r.decided_at ?? '-'}</p><p className="preserve-lines">決裁メモ: {r.decision_note ?? '-'}</p>
-      <div className="form-actions"><Link to="/software/release-cycles">系列・イベントを確認</Link>
+      <div className="form-actions"><Link to="/software/release-cycles">サポート期限を確認</Link>
         {r.status === 'pending' && <><Button disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'approve' })}>承認</Button>
           <Button variant="danger" disabled={!!selected} onClick={() => setSelected({ request: r, decision: 'reject' })}>却下</Button></>}
       </div>

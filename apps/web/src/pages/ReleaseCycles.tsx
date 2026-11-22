@@ -20,7 +20,7 @@ export function ReleaseCycles() {
     setEditor(null); setRevision((n) => n + 1);
     setNotice(pending ? '承認待ちとして登録しました（HTTP 202）。日付はまだ変更されていません。' : '保存しました。');
   }
-  return <section><PageHeader title="リリース系列・ライフサイクルイベント" actions={<Button variant="primary" data-testid="create-cycle" onClick={() => setEditor({ kind: 'cycle', cycle: null })}>系列を登録</Button>} />
+  return <section><PageHeader title="サポート期限（リリース系列・ライフサイクルイベント）" actions={<Button variant="primary" data-testid="create-cycle" onClick={() => setEditor({ kind: 'cycle', cycle: null })}>系列を登録</Button>} />
     <p>稼働中の資産が使用する系列だけ登録します。公式に明示されていない終了日は登録しないでください。</p>
     <div className="filters"><ProductSelect optional value={productId} onChange={(v) => { setEditor(null); setSp(v ? { software_product_id: v } : {}); }} />
       <Button onClick={() => { setEditor(null); setRevision((n) => n + 1); }}>再読み込み</Button><Link to="/software/lifecycle-event-change-requests">日付変更の承認キュー</Link></div>

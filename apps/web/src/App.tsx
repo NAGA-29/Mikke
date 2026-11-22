@@ -29,7 +29,7 @@ export function App() {
     { label: '関係・図', items: [['/diagrams', '構成図', 'diagrams']] },
     { label: 'ソフトウェア・EOL', items: [
       ['/software/products', 'ソフトウェア製品', 'products'], ['/software/installations', 'ソフトウェア導入', 'installations'],
-      ['/software/release-cycles', '系列・イベント', 'release-cycles'], ['/eol', 'EOL ダッシュボード', 'eol'],
+      ['/software/release-cycles', 'サポート期限', 'release-cycles'], ['/eol', 'EOL 状況', 'eol'],
     ] },
     { label: '運用', items: [['/software/lifecycle-event-change-requests', '承認待ち', 'approvals'], ['/audit-logs', '監査ログ', 'audit-logs']] },
   ];

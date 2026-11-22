@@ -27,7 +27,7 @@ export function EolDashboard() {
     const next = new URLSearchParams(sp); if (value) next.set(key, value); else next.delete(key); setSp(next, { replace: true });
   }
   const items = data?.items.filter((i) => sp.get('needs_review') !== 'true' || i.needs_verification || i.cycle_mismatch);
-  return <section><PageHeader title="EOL ダッシュボード" />
+  return <section><PageHeader title="EOL 状況" />
     <p>稼働中の資産が対象です。終了日はAPIの判定を表示します。個別契約のサポート期限は別途確認してください。</p>
     <div className="filters">
       <label>状態<select value={sp.get('status') ?? ''} onChange={(e) => filter('status', e.target.value)}><option value="">すべて</option>
