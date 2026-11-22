@@ -1,13 +1,22 @@
-import { Badge, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, Time } from '../components/ui';
+import { Badge, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, SummaryCard, Time } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
+
+type Summary = { by_type: Record<ResourceType, { active: number; archived: number }>; total: { active: number; archived: number } };
 
 export function ResourceList() {
   const [sp, setSp] = useSearchParams();
   const [items, setItems] = useState<Resource[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const qs = sp.toString();
+  const [summary, setSummary] = useState<Summary | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<Summary>('/resources/summary').then((s) => live && setSummary(s)).catch(() => live && setSummary(null));
+    return () => { live = false; };
+  }, []);
+  const typeFilter = sp.get('type');
 
   useEffect(() => {
     let live = true;
@@ -29,6 +38,14 @@ export function ResourceList() {
   return (
     <section>
       <PageHeader title="資産" actions={<Link className="button button-primary" data-testid="create-resource" to="/resources/new">新規登録</Link>} />
+      <div className="summary" role="group" aria-label="種別ごとの件数（クリックで絞り込み）">
+        <SummaryCard testId="summary-all" label="すべて" count={summary?.total.active ?? null} active={!typeFilter} onClick={() => set('type', '')} />
+        {(Object.keys(RESOURCE_TYPE_LABEL) as ResourceType[]).map((t) =>
+          <SummaryCard key={t} testId={`summary-${t}`} label={RESOURCE_TYPE_LABEL[t]} count={summary?.by_type[t].active ?? null}
+            active={typeFilter === t} onClick={() => set('type', typeFilter === t ? '' : t)} />)}
+        <SummaryCard testId="summary-archived" label="アーカイブ済み" count={summary?.total.archived ?? null}
+          active={sp.get('include_archived') === 'true'} onClick={() => set('include_archived', sp.get('include_archived') === 'true' ? '' : 'true')} />
+      </div>
       <div className="filters">
         <input aria-label="名前で検索" placeholder="名前で検索" defaultValue={sp.get('q') ?? ''} onChange={(e) => set('q', e.target.value)} />
         <select aria-label="資産種別" value={sp.get('type') ?? ''} onChange={(e) => set('type', e.target.value)}>

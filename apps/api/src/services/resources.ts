@@ -219,6 +219,21 @@ export async function listResources(db: Queryable, query: unknown) {
   return { items, limit: f.limit, offset: f.offset };
 }
 
+/** 種別ごとの件数（稼働中＝アーカイブされていない／アーカイブ済み）。一覧のサマリー表示用 */
+export async function getResourceSummary(db: Queryable) {
+  const rows = await many<{ resource_type: ResourceType; active: number; archived: number }>(
+    db,
+    `SELECT resource_type,
+            count(*) FILTER (WHERE archived_at IS NULL)::int AS active,
+            count(*) FILTER (WHERE archived_at IS NOT NULL)::int AS archived
+       FROM resources GROUP BY resource_type`,
+  );
+  const by_type = Object.fromEntries(RESOURCE_TYPES.map((t) => [t, { active: 0, archived: 0 }])) as Record<ResourceType, { active: number; archived: number }>;
+  for (const r of rows) by_type[r.resource_type] = { active: r.active, archived: r.archived };
+  const total = Object.values(by_type).reduce((a, v) => ({ active: a.active + v.active, archived: a.archived + v.archived }), { active: 0, archived: 0 });
+  return { by_type, total };
+}
+
 export async function createResource(tx: PoolClient, actor: Actor, body: unknown): Promise<ResourceWithDetail> {
   const input = parse(createResourceSchema, body);
   const { resource_type, detail, ...base } = input;

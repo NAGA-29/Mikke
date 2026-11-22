@@ -150,3 +150,31 @@ describe('archive / restore (MVP受け入れ基準6)', () => {
     expect(logs[1].actor_id).toBe('test:admin');
   });
 });
+
+describe('resource summary（一覧のサマリー用の件数）', () => {
+  it('counts active/archived per type, including types with zero rows', async () => {
+    expect(await ok('GET', '/resources/summary')).toEqual({
+      by_type: {
+        compute: { active: 0, archived: 0 }, application: { active: 0, archived: 0 },
+        service_instance: { active: 0, archived: 0 }, repository: { active: 0, archived: 0 },
+      },
+      total: { active: 0, archived: 0 },
+    });
+
+    await create.compute('vps-a');
+    await create.compute('vps-b');
+    const app = await create.app('portal');
+    await create.repo('web', 'https://github.com/example-org/web');
+    await ok('POST', `/resources/${app.id}/archive`, { as: 'admin' });
+
+    const s = await ok('GET', '/resources/summary');
+    expect(s.by_type.compute).toEqual({ active: 2, archived: 0 });
+    expect(s.by_type.application).toEqual({ active: 0, archived: 1 });
+    expect(s.by_type.repository).toEqual({ active: 1, archived: 0 });
+    expect(s.total).toEqual({ active: 3, archived: 1 });
+  });
+
+  it('requires authentication and is not shadowed by /resources/:id', async () => {
+    expect((await call('GET', '/resources/summary', { as: 'none' })).status).toBe(401);
+  });
+});

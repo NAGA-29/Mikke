@@ -88,7 +88,7 @@ pnpm test
 
 | メソッド | パス | スコープ |
 |---|---|---|
-| GET | `/resources`, `/resources/{id}`, `/resources/{id}/references` | read |
+| GET | `/resources`, `/resources/summary`（種別ごとの件数）, `/resources/{id}`, `/resources/{id}/references` | read |
 | POST / PATCH | `/resources`, `/resources/{id}` | write |
 | POST | `/resources/{id}/archive`, `/resources/{id}/restore` | admin |
 | GET / POST / DELETE | `/relations`, `/relation-types` | read / write |

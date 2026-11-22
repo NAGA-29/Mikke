@@ -55,6 +55,8 @@ export function createApp({ pool, config }: AppDeps) {
 
   // ---- resources -----------------------------------------------------------
   api.get('/resources', read, async (c) => c.json(await resources.listResources(pool, query(c))));
+  // /resources/:id より前に登録する（'summary' を id として解釈させない）
+  api.get('/resources/summary', read, async (c) => c.json(await resources.getResourceSummary(pool)));
   api.get('/resources/:id', read, async (c) => c.json(await resources.getResource(pool, id(c))));
   api.get('/resources/:id/references', read, async (c) => c.json(await resources.getReferences(pool, id(c))));
   api.post('/resources', write, async (c) => {

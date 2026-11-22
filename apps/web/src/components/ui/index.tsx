@@ -126,3 +126,12 @@ export function Modal({ title, onClose, children, size = 'md', busy = false }: {
     <div className="modal-body">{children}</div>
   </dialog>;
 }
+
+/** 件数カード。クリックで絞り込みに使える（aria-pressed で選択中を示す） */
+export function SummaryCard({ label, count, active = false, onClick, testId }: {
+  label: string; count: number | null; active?: boolean; onClick?: () => void; testId?: string;
+}) {
+  return <button type="button" className={`summary-card${active ? ' is-active' : ''}`} aria-pressed={active} data-testid={testId} onClick={onClick}>
+    {label}<strong>{count === null ? '–' : count.toLocaleString()}</strong>
+  </button>;
+}
