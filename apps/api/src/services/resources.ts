@@ -216,7 +216,9 @@ export async function listResources(db: Queryable, query: unknown) {
     `${SELECT_WITH_DETAIL} ${whereSql} ORDER BY r.name, r.id LIMIT ${f.limit} OFFSET ${f.offset}`,
     params,
   );
-  return { items, limit: f.limit, offset: f.offset };
+  // ページ送り用に、絞り込み条件に一致する総件数も返す（limit で切り詰められていることを呼び出し側が検知できるように）
+  const count = await one<{ n: number }>(db, `SELECT count(*)::int AS n FROM resources r ${whereSql}`, params);
+  return { items, total: count?.n ?? 0, limit: f.limit, offset: f.offset };
 }
 
 /** 種別ごとの件数（稼働中＝アーカイブされていない／アーカイブ済み）。一覧のサマリー表示用 */

@@ -1,13 +1,16 @@
-import { Badge, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, SummaryCard, Time } from '../components/ui';
+import { Badge, Button, DataTable, EmptyState, ErrorState, LoadingState, PageHeader, SummaryCard, Time } from '../components/ui';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
 
 type Summary = { by_type: Record<ResourceType, { active: number; archived: number }>; total: { active: number; archived: number } };
 
+const PAGE_SIZE = 50;
+
 export function ResourceList() {
   const [sp, setSp] = useSearchParams();
   const [items, setItems] = useState<Resource[] | null>(null);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const qs = sp.toString();
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -17,13 +20,20 @@ export function ResourceList() {
     return () => { live = false; };
   }, []);
   const typeFilter = sp.get('type');
+  const offset = Math.max(0, Number(sp.get('offset')) || 0);
+  const goto = (next: number) => {
+    const n = new URLSearchParams(sp);
+    if (next > 0) n.set('offset', String(next)); else n.delete('offset');
+    setSp(n);
+    window.scrollTo({ top: 0 });
+  };
 
   useEffect(() => {
     let live = true;
     setItems(null);
     setError(null);
-    api<{ items: Resource[] }>(`/resources?${qs}`)
-      .then((r) => live && setItems(r.items))
+    api<{ items: Resource[]; total: number }>(`/resources?${qs}&limit=${PAGE_SIZE}`)
+      .then((r) => { if (live) { setItems(r.items); setTotal(r.total); } })
       .catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
   }, [qs]);
@@ -79,6 +89,12 @@ export function ResourceList() {
           </tbody>
         </DataTable>
       )}
+      {items && total > 0 && <nav className="pager" aria-label="ページ送り" data-testid="pager">
+        <span data-testid="pager-range">全 {total.toLocaleString()} 件中 {(offset + 1).toLocaleString()}–{Math.min(offset + items.length, total).toLocaleString()} 件を表示</span>
+        <Button type="button" data-testid="pager-prev" disabled={offset === 0} onClick={() => goto(Math.max(0, offset - PAGE_SIZE))}>前の{PAGE_SIZE}件</Button>
+        <Button type="button" data-testid="pager-next" disabled={offset + PAGE_SIZE >= total} onClick={() => goto(offset + PAGE_SIZE)}>次の{PAGE_SIZE}件</Button>
+      </nav>}
+      {items && items.length === 0 && offset > 0 && <p>この位置に表示する資産はありません。<Button type="button" onClick={() => goto(0)}>先頭へ戻る</Button></p>}
     </section>
   );
 }

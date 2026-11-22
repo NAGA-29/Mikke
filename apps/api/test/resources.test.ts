@@ -178,3 +178,25 @@ describe('resource summary（一覧のサマリー用の件数）', () => {
     expect((await call('GET', '/resources/summary', { as: 'none' })).status).toBe(401);
   });
 });
+
+describe('resource list pagination（総件数と切り詰めの検知）', () => {
+  it('returns total for the current filters, independent of limit/offset', async () => {
+    for (const n of ['a', 'b', 'c', 'd', 'e']) await create.compute(`host-${n}`);
+    await create.app('portal');
+
+    const page1 = await ok('GET', '/resources?type=compute&limit=2');
+    expect(page1.items.map((r: any) => r.name)).toEqual(['host-a', 'host-b']);
+    expect(page1).toMatchObject({ total: 5, limit: 2, offset: 0 });
+
+    const page3 = await ok('GET', '/resources?type=compute&limit=2&offset=4');
+    expect(page3.items.map((r: any) => r.name)).toEqual(['host-e']);
+    expect(page3.total).toBe(5);
+
+    // 絞り込みなしの総件数・アーカイブの扱いも一覧の条件に一致する
+    expect((await ok('GET', '/resources?limit=1')).total).toBe(6);
+    const host = page1.items[0];
+    await ok('POST', `/resources/${host.id}/archive`, { as: 'admin' });
+    expect((await ok('GET', '/resources?type=compute')).total).toBe(4);
+    expect((await ok('GET', '/resources?type=compute&include_archived=true')).total).toBe(5);
+  });
+});
