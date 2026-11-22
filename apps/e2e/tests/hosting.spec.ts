@@ -103,3 +103,33 @@ test('コンピュートからサービスのホスト先を上書きし、行�
   await page.getByTestId('hosting-confirm').click();
   await expect(table.getByText('参照なし')).toBeVisible();
 });
+
+test('サービス詳細の「ホスト先」行から、その場でホスト先を設定・変更できる', async ({ page, request }) => {
+  const hostA = await seedResource(request, { resource_type: 'compute', name: unique('host-a'), detail: { asset_kind: 'vps' } });
+  const hostB = await seedResource(request, { resource_type: 'compute', name: unique('host-b'), detail: { asset_kind: 'vps' } });
+  const svc = await seedResource(request, { resource_type: 'service_instance', name: unique('row-db'), detail: { service_kind: 'database' } });
+  await loginOk(page);
+  await page.goto(`/resources/${svc.id}`);
+
+  const card = page.getByTestId('detail-list');
+  await expect(card.getByText('ホスト先', { exact: true })).toBeVisible();
+  await expect(card.getByText('未設定')).toBeVisible();
+
+  await page.getByTestId('host-row-edit').click();
+  await expect(page.getByTestId('hosting-editor')).toBeVisible();
+  await page.getByTestId('hosting-host-search').fill(hostA.name);
+  await page.getByTestId('hosting-host-select').selectOption(hostA.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(card.getByRole('link', { name: hostA.name })).toBeVisible();
+  await expect(card.getByText('未設定')).toHaveCount(0);
+
+  // 変更
+  await expect(page.getByTestId('host-row-edit')).toHaveText('ホスト先を変更');
+  await page.getByTestId('host-row-edit').click();
+  await page.getByTestId('hosting-host-search').fill(hostB.name);
+  await page.getByTestId('hosting-host-select').selectOption(hostB.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(card.getByRole('link', { name: hostB.name })).toBeVisible();
+});

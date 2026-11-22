@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api, RESOURCE_TYPE_LABEL, type Resource } from '../api';
 import { ResourceReferences } from '../components/ResourceReferences';
 import { ArchiveResource } from '../components/ArchiveResource';
+import { HostingEditor } from '../components/HostingEditor';
 import { DetailList } from '../components/DetailList';
 import { ReleaseCycleAssignment } from '../components/SoftwareFields';
 
@@ -12,6 +13,8 @@ export function ResourceDetail() {
   const [res, setRes] = useState<Resource | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [hostEditing, setHostEditing] = useState(false);
+  const [hostName, setHostName] = useState<string | undefined>();
 
   useEffect(() => {
     let live = true;
@@ -22,6 +25,15 @@ export function ResourceDetail() {
       .catch((e: Error) => live && setError(e.message));
     return () => { live = false; };
   }, [id, revision]);
+
+  const hostId = typeof res?.detail?.host_compute_id === 'string' ? res.detail.host_compute_id : null;
+  useEffect(() => {
+    setHostName(undefined);
+    if (!hostId) return;
+    let live = true;
+    api<{ name: string }>(`/resources/${hostId}`).then((h) => { if (live) setHostName(h.name); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [hostId]);
 
   if (error) return <ErrorState>{error}</ErrorState>;
   if (!res || res.id !== id) return <LoadingState />;
@@ -38,7 +50,10 @@ export function ResourceDetail() {
         <dt>最終確認</dt><dd><Time value={res.last_verified_at} /></dd>
       </dl>
       <h3>種別ごとの詳細</h3>
-      <DetailList type={res.resource_type} detail={res.detail} />
+      <DetailList type={res.resource_type} detail={res.detail}
+        onEditHost={res.resource_type === 'service_instance' && !res.archived_at ? () => setHostEditing(true) : undefined} />
+      {hostEditing && <HostingEditor resource={res} selection={{ kind: 'host', hostId: hostId ?? '', hostName }}
+        onCancel={() => setHostEditing(false)} onSaved={() => { setHostEditing(false); setRevision((n) => n + 1); }} />}
       <div className="form-actions">
         <LinkButton icon="package" to="/software/products">ソフトウェア製品</LinkButton>
         {res.resource_type === 'compute' && <LinkButton icon="server" to={`/software/installations?compute_asset_id=${res.id}`}>ソフトウェア導入・系列割当</LinkButton>}

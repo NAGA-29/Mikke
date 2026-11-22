@@ -33,7 +33,7 @@ export const fields: Record<ResourceType, Field[]> = {
     { name: 'software_product_id', label: 'ソフトウェア製品ID', hint: '製品名で検索して選択。指定なしで解除できます。' },
     { name: 'provider', label: 'プロバイダー', max: 100 },
     { name: 'is_managed', label: 'マネージドサービス', kind: 'boolean' },
-    { name: 'host_compute_id', label: 'ホストCompute ID', hint: 'アーカイブされていないコンピュートを名前で検索。指定なしで解除できます。' },
+    { name: 'host_compute_id', label: 'ホスト先', hint: 'アーカイブされていないコンピュートを名前で検索。指定なしで解除できます。' },
     { name: 'endpoint', label: 'エンドポイント', max: 1024 },
     { name: 'attributes', label: '属性（JSONオブジェクト）', kind: 'attributes' },
   ],
