@@ -1,3 +1,4 @@
+import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
@@ -10,20 +11,20 @@ export function SoftwareProducts() {
   const { data, error } = useApiData<Product[]>(`/software/products?${new URLSearchParams({ q: query })}`, revision);
   const [editing, setEditing] = useState<Product | 'new' | null>(null);
   const [notice, setNotice] = useState('');
-  return <section><div className="page-heading"><h2>ソフトウェア製品</h2><button onClick={() => setEditing('new')}>製品を登録</button></div>
+  return <section><PageHeader title="ソフトウェア製品" actions={<Button variant="primary" data-testid="create-product" onClick={() => setEditing('new')}>製品を登録</Button>} />
     <TextField label="製品名で検索" value={query} onChange={setQuery} />
     {notice && <p role="status">{notice}</p>}
     <FormError error={error} scope="mikke:read" />
     {editing && <ProductForm key={editing === 'new' ? 'new' : editing.id} product={editing === 'new' ? null : editing}
       onCancel={() => setEditing(null)} onSaved={() => { setEditing(null); setRevision((v) => v + 1); setNotice('保存しました。'); }} />}
-    {!data && !error && <p>読み込み中…</p>}
-    {data && <table><thead><tr><th>製品</th><th>ベンダー</th><th>分類</th><th>操作</th></tr></thead><tbody>
+    {!data && !error && <LoadingState />}
+    {data && <DataTable aria-label="ソフトウェア製品一覧"><thead><tr><th scope="col">製品</th><th scope="col">ベンダー</th><th scope="col">分類</th><th scope="col">操作</th></tr></thead><tbody>
       {data.map((p) => <tr key={p.id}><td>{p.name}</td><td>{p.vendor ?? '-'}</td><td>{p.category ?? '-'}</td><td>
-        <button onClick={() => setEditing(p)}>編集</button>{' '}
+        <Button onClick={() => setEditing(p)}>編集</Button>{' '}
         <Link to={`/software/installations?software_product_id=${p.id}`}>導入</Link>{' '}
         <Link to={`/software/release-cycles?software_product_id=${p.id}`}>リリース系列・イベント</Link>
-      </td></tr>)}{!data.length && <tr><td colSpan={4}>該当なし</td></tr>}
-    </tbody></table>}
+      </td></tr>)}{!data.length && <tr><td colSpan={4}><EmptyState>該当なし</EmptyState></td></tr>}
+    </tbody></DataTable>}
   </section>;
 }
 
@@ -41,6 +42,6 @@ function ProductForm({ product, onSaved, onCancel }: { product: Product | null; 
   }}><fieldset disabled={saving}><legend>{product ? '製品を編集' : '製品を登録'}</legend>
     <FormError error={error} /><TextField label="製品名" required value={name} onChange={setName} />
     <TextField label="ベンダー" value={vendor} onChange={setVendor} /><TextField label="分類" maxLength={50} value={category} onChange={setCategory} />
-    <div className="form-actions"><button>保存</button><button type="button" onClick={onCancel}>キャンセル</button></div>
+    <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
   </fieldset></form>;
 }

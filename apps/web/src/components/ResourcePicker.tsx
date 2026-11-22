@@ -1,3 +1,4 @@
+import { Button, ErrorState } from './ui';
 import { useEffect, useId, useState } from 'react';
 import { api, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
 
@@ -58,11 +59,11 @@ export function ResourcePicker({ label, value, onChange, types, hostingOnly = fa
     </select>
     {loading && <small role="status">検索中…</small>}
     {!loading && !items.length && !error && <small>このページに候補はありません。</small>}
-    {error && <p className="error" role="alert">{error}</p>}
+    {error && <ErrorState>{error}</ErrorState>}
     <div className="form-actions">
-      <button type="button" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>前の候補</button>
+      <Button type="button" disabled={loading || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>前の候補</Button>
       <span>{offset + 1}件目から</span>
-      <button type="button" disabled={loading || !hasMore} onClick={() => setOffset(offset + PAGE_SIZE)}>次の候補</button>
+      <Button type="button" disabled={loading || !hasMore} onClick={() => setOffset(offset + PAGE_SIZE)}>次の候補</Button>
     </div>
   </div>;
 }

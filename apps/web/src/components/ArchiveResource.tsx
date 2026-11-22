@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useState } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
@@ -11,7 +12,7 @@ export function ArchiveResource({ resource, onSaved }: { resource: Resource; onS
   const action = resource.archived_at ? 'restore' : 'archive';
   const label = resource.archived_at ? '復元' : 'アーカイブ';
   return <section><h3>管理者操作</h3><p>mikke:admin が必要です。</p>
-    {!confirming ? <button onClick={() => { setReady(false); setError(null); setConfirming(true); }}>{label}の参照確認</button> : <>
+    {!confirming ? <Button onClick={() => { setReady(false); setError(null); setConfirming(true); }}>{label}の参照確認</Button> : <>
       <h4>{resource.name} の{label}前の参照一覧</h4>
       <ResourceReferences resource={resource} readOnly onReadyChange={setReady} />
       <form className="resource-form" onSubmit={async (e) => {
@@ -22,8 +23,8 @@ export function ArchiveResource({ resource, onSaved }: { resource: Resource; onS
         <p>関連レコードと監査履歴は保持されます。アーカイブした資産は通常のEOL集計から除外されます。</p>
         <FormError error={error} scope="mikke:admin" />
         <label><input key={String(ready)} type="checkbox" disabled={!ready} required />上記の参照一覧を確認しました</label>
-        <div className="form-actions"><button disabled={!ready}>{saving ? '処理中…' : `${label}を実行`}</button>
-          <button type="button" onClick={() => setConfirming(false)}>キャンセル</button></div>
+        <div className="form-actions"><Button data-testid="dialog-confirm" variant={resource.archived_at ? 'primary' : 'danger'} disabled={!ready}>{saving ? '処理中…' : `${label}を実行`}</Button>
+          <Button data-testid="dialog-cancel" type="button" onClick={() => setConfirming(false)}>キャンセル</Button></div>
       </fieldset></form>
     </>}
   </section>;

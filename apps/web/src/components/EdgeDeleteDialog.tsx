@@ -1,3 +1,4 @@
+import { Button, LoadingState } from './ui';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api';
@@ -61,16 +62,16 @@ export function EdgeDeleteDialog({ edge, sourceName, targetName, onDeleted, onCl
     <p>{sourceName} → {targetName} / {EDGE_LABEL[edge.edge_kind]} / {edge.label}</p>
     <p>正本ID: {edge.edge_record_id}</p>
     <p><strong>全図・MCPに反映されます。</strong>資産は残ります。{edge.edge_kind === 'hosting' ? 'サービスのホスト先を解除します。' : 'この正本レコードを削除します。'}全図の対応する非表示設定も削除されます。</p>
-    {loading ? <p role="status">影響範囲を取得中…</p> : <>
+    {loading ? <LoadingState>影響範囲を取得中…</LoadingState> : <>
       <p>両端の資産を配置している図（{impacts.length}件、取得時点）:</p>
       <ul>{impacts.map((d) => <li key={d.id}><Link to={`/diagrams/${d.id}`}>{d.name}</Link>（{d.visible ? '表示中' : '非表示または関係変更済み'}）</li>)}</ul>
       <p>その他の図でも、この関係を今後表示できなくなります。</p>
       {usage > 0 && <p>同じアプリ・Repoを参照するデプロイ: {usage}件。他の用途のリンクもない場合、APIは削除を409で拒否します。</p>}
     </>}
     <CanvasError error={error} />
-    <div className="form-actions"><button disabled={busy || loading} onClick={() => setAttempt((n) => n + 1)}>影響範囲を再取得</button></div>
+    <div className="form-actions"><Button disabled={busy || loading} onClick={() => setAttempt((n) => n + 1)}>影響範囲を再取得</Button></div>
     <p><label><input type="checkbox" checked={confirmed} disabled={busy || loading || !!error} onChange={(e) => setConfirmed(e.target.checked)} /> 全図・MCPへの影響を確認しました</label></p>
-    <div className="form-actions"><button disabled={busy || loading || !!error || !confirmed} onClick={() => void remove()}>正本を削除・解除</button>
-      <button disabled={busy} onClick={onClose}>キャンセル</button></div>
+    <div className="form-actions"><Button variant="danger" data-testid="dialog-confirm" disabled={busy || loading || !!error || !confirmed} onClick={() => void remove()}>正本を削除・解除</Button>
+      <Button data-testid="dialog-cancel" disabled={busy} onClick={onClose}>キャンセル</Button></div>
   </dialog>;
 }

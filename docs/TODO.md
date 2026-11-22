@@ -30,6 +30,9 @@
 - [x] アーカイブ・復元（admin のみAPIで許可。参照一覧を再取得し、取得成功後にページ内で確認）（2026-11-22、PR未作成）
 - [x] 監査ログの閲覧（日時・主体・操作・対象、対象種別／ID・主体・取得件数フィルタ）（2026-11-22、PR未作成）
   - 上記UI・サイドナビは `pnpm typecheck` / `pnpm --filter @mikke/web build` 通過。API・依存パッケージの変更なし。ブラウザー操作確認は開発サーバーのlisten制限（`127.0.0.1:5173`、`EPERM`）により未実施。
+- [x] UI整理：内部CMDB向けの固定・グループ別ナビ、現在地表示、CSS変数のデザイントークン、共通UI（ヘッダー・ボタン・バッジ・表・空／読込／エラー）、カード、2列フォーム、詳細の区切り、Canvas・確認UIを統一。フォーカス・ARIA・E2E用識別子を追加（2026-11-22、PR未作成）
+  - ログインは `GET /api/v1/resources?limit=1` 成功後のみ sessionStorage に保存。表示切替・Enter送信・処理中表示、401／403／通信失敗の区別、通常APIの401でログインへ戻す処理を追加。認証以外のAPI呼出・検証・業務ロジックと依存関係は変更なし。
+  - `pnpm typecheck` / `pnpm --filter @mikke/web build` 通過。ブラウザーの表示・キーボード操作・実API連携は未検証。
 - UI の参考像は「一覧＋詳細の管理画面型」（左サイドナビ・フィルタ付き一覧・詳細ページ・フォーム編集）で確定
 
 ### Step 3: Graph API と Canvas
@@ -53,7 +56,7 @@
 - [x] 初期ツール：`search_resources`, `get_resource`, `get_application_deployments`, `get_resource_dependencies`, `get_resource_graph`, `search_software_installations`, `list_eol_status`, `get_software_lifecycle`, `create_resource`, `update_resource`, `create_software_release_cycle`, `update_software_release_cycle`, `create_lifecycle_event`, `update_lifecycle_event`, `assign_release_cycle`
 - [x] アーカイブ・関係削除・EOLイベント削除などの破壊的操作は公開しない
 - [x] Agent ごとのトークンとスコープ。書き込み用の認証情報をプロンプトやログに出さない
-- [ ] Agent による EOL 調査フロー（§12.2）が API だけで完結することを確認する
+- [x] Agent による EOL 調査フロー（§12.2）が API だけで完結することを確認する（mcp.test.ts）
 
   - 2026-11-22、PR未作成。stdio起動・15ツール・共通認証・スコープ・同一TX監査・承認待ち・楽観ロックを実装。READMEに起動とクライアント設定を記載。
   - SDK Client/InMemoryTransport統合テスト7件を追加。`pnpm typecheck` 通過。DBなしのSDKスモーク（ツール列挙・権限不足・actor_id拒否）通過。`pnpm test` はDB接続がEPERMでglobal setup停止、テスト本体は **NOT RUN**。調査フロー完了確認は実DB環境で残作業。
@@ -69,7 +72,7 @@
 
 ## 技術的な宿題
 
-- [ ] **CI がまだ無い**。GitHub Actions で PostgreSQL 18 のサービスコンテナを立て、`pnpm typecheck` と `pnpm test` を回す
+- [x] CI：`.github/workflows/ci.yml`（typecheck・web ビルド・API テスト・Playwright e2e、PostgreSQL 18 サービスコンテナ）。**初回の GitHub 上での実行は未確認**（2026-11-22）。アクションは major タグ指定なので、コミット SHA 固定を検討
 - [ ] OpenAPI など API 仕様の機械可読な定義（UI と MCP の実装前にあると楽）
 - [ ] EOL系以外の更新にも楽観ロック（`expected_updated_at`）を入れる（§6-8 で「後日」とされている）
 - [ ] 資産と種別詳細の1:1整合（詳細行が欠けた資産）を見つける定期チェック SQL（§13）
@@ -78,3 +81,9 @@
 ## 将来（MVP 外・設計書 §11）
 
 CPE/purl と CVE 照合、EOL 情報の自動収集、SSH / AWS API による資産の自動収集、依存関係の影響分析、関係の属性（ポート・プロトコル等）と履歴、Canvas のリアルタイム共同編集。
+
+## e2e（Playwright）
+
+- [x] `apps/e2e`：認証、資産の登録・編集・検索・アーカイブ、EOL ダッシュボードと承認、監査ログ、構成図 / Canvas（12件、2026-11-22）
+- [ ] 未カバー：依存関係・デプロイ・アプリ↔Repo の登録削除、ソフトウェア導入と系列の割当、Canvas での接続・エッジ削除・ドラッグ保存、アーカイブ復元
+- 見た目の確認：`SCREENSHOT_DIR=<dir> pnpm test:e2e tests/screens.spec.ts` で全画面のスクリーンショットを保存

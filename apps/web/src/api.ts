@@ -1,4 +1,5 @@
 const KEY = 'mikke.token';
+export const AUTH_EXPIRED_EVENT = 'mikke:auth-expired';
 
 // 簡易ログイン：トークンは sessionStorage にのみ保持（タブを閉じると消える）。SSO導入時に差し替える
 export const getToken = () => sessionStorage.getItem(KEY);
@@ -21,6 +22,10 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
     headers,
     body: init.json !== undefined ? JSON.stringify(init.json) : init.body,
   });
+  if (res.status === 401 && token && token === getToken()) {
+    clearToken();
+    window.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {

@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Button } from './ui';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../api';
 import { FormError } from './FormError';
 
@@ -54,13 +55,14 @@ export function TextField({ label, value, onChange, required = false, maxLength 
   label: string; value: string; onChange: (value: string) => void; required?: boolean; maxLength?: number; type?: string; credentialFreeUrl?: boolean;
 }) {
   const [unsafe, setUnsafe] = useState(false);
-  return <label>{label}<input type={type} value={value} required={required} maxLength={maxLength}
+  const errorId = useId();
+  return <label>{label}<input aria-invalid={unsafe} aria-describedby={unsafe ? errorId : undefined} type={type} value={value} required={required} maxLength={maxLength}
     autoComplete="off" onChange={(e) => {
       const invalid = credentialFreeUrl && urlHasCredentials(e.target.value.trim());
       setUnsafe(invalid);
       if (invalid) { e.currentTarget.value = ''; onChange(''); }
       else onChange(e.target.value);
-    }} />{unsafe && <small className="error" role="alert">認証情報らしい入力を消去しました。URLに認証情報・認証クエリを含めないでください。</small>}</label>;
+    }} />{unsafe && <small id={errorId} className="error" role="alert">認証情報らしい入力を消去しました。URLに認証情報・認証クエリを含めないでください。</small>}</label>;
 }
 
 export function ReleaseCycleAssignment({ path, productId, currentId, onSaved }: {
@@ -87,6 +89,6 @@ export function ReleaseCycleAssignment({ path, productId, currentId, onSaved }: 
       {productId && cycles?.map((c) => <option key={c.id} value={c.id}>{c.cycle} / {c.verification_status}</option>)}
     </select></label>
     <label><input type="checkbox" checked={allow} onChange={(e) => setAllow(e.target.checked)} />バージョン不一致を確認のうえ許可する（EOL判定は不明になります）</label>
-    <button disabled={!cycles || !!loadError || (!!cycleId && !productId)}>割当を保存</button>
+    <Button variant="primary" data-testid="form-submit" disabled={!cycles || !!loadError || (!!cycleId && !productId)}>割当を保存</Button>
   </fieldset></form>;
 }

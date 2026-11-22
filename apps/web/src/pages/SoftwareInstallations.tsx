@@ -1,3 +1,4 @@
+import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -22,31 +23,30 @@ export function SoftwareInstallations() {
     setEditing(null); setAssigning(null); setSp(next);
   }
   function saved() { setEditing(null); setAssigning(null); setRevision((v) => v + 1); setNotice('保存しました。'); }
-  return <section><div className="page-heading"><h2>ソフトウェア導入</h2>
-    <button onClick={() => { setEditing('new'); setAssigning(null); }}>導入を登録</button></div>
+  return <section><PageHeader title="ソフトウェア導入" actions={<Button variant="primary" data-testid="create-installation" onClick={() => { setEditing('new'); setAssigning(null); }}>導入を登録</Button>} />
     <div className="filters"><ProductSelect optional value={sp.get('software_product_id') ?? ''} onChange={(v) => filter('software_product_id', v)} />
       <TextField label="バージョン（完全一致）" value={sp.get('version') ?? ''} onChange={(v) => filter('version', v)} />
       <label><input type="checkbox" checked={sp.get('include_archived') === 'true'} onChange={(e) => filter('include_archived', e.target.checked ? 'true' : '')} />アーカイブを含む</label>
     </div>
     <ResourcePicker optional types={['compute']} label="コンピュートで絞り込み" value={sp.get('compute_asset_id') ?? ''} onChange={(v) => filter('compute_asset_id', v)} />
     {notice && <p role="status">{notice}</p>}<FormError error={error} scope="mikke:read" />
-    <button onClick={() => { setRevision((v) => v + 1); setEditing(null); setAssigning(null); }}>再読み込み</button>
+    <Button onClick={() => { setRevision((v) => v + 1); setEditing(null); setAssigning(null); }}>再読み込み</Button>
     {editing && <InstallationForm key={editing === 'new' ? 'new' : editing.id} installation={editing === 'new' ? null : editing}
       computeId={sp.get('compute_asset_id') ?? ''} productId={sp.get('software_product_id') ?? ''} onSaved={saved} onCancel={() => setEditing(null)} />}
     {assigning && <><h3>{assigning.compute_name} / {assigning.product_name} / {assigning.version ?? '版不明'}</h3>
       <ReleaseCycleAssignment key={assigning.id} path={`/software/installations/${assigning.id}/release-cycle`}
         productId={assigning.software_product_id} currentId={assigning.release_cycle_id} onSaved={saved} />
-      <button onClick={() => setAssigning(null)}>キャンセル</button></>}
-    {!data && !error && <p>読み込み中…</p>}
-    {data && <div className="reference-table"><table><thead><tr><th>コンピュート</th><th>製品</th><th>バージョン</th><th>系列</th><th>導入方法・パス</th><th>設定パス</th><th>最終確認</th><th>操作</th></tr></thead><tbody>
+      <Button data-testid="dialog-cancel" onClick={() => setAssigning(null)}>キャンセル</Button></>}
+    {!data && !error && <LoadingState />}
+    {data && <div className="reference-table"><DataTable aria-label="ソフトウェア導入一覧"><thead><tr><th scope="col">コンピュート</th><th scope="col">製品</th><th scope="col">バージョン</th><th scope="col">系列</th><th scope="col">導入方法・パス</th><th scope="col">設定パス</th><th scope="col">最終確認</th><th scope="col">操作</th></tr></thead><tbody>
       {data.map((i) => <tr key={i.id} className={i.compute_archived ? 'archived' : ''}>
         <td><Link to={`/resources/${i.compute_asset_id}`}>{i.compute_name}</Link>{i.compute_archived && '（アーカイブ）'}</td>
         <td>{i.product_name}</td><td>{i.version ?? '-'}</td><td><Link to={`/software/release-cycles?software_product_id=${i.software_product_id}`}>{i.release_cycle ?? '未割当'}</Link></td>
         <td>{i.install_method ?? '-'} / {i.install_path ?? '-'}</td><td>{i.config_path ?? '-'}</td><td>{i.last_verified_at ?? '-'}</td><td>
-          <button disabled={i.compute_archived} onClick={() => { setEditing(i); setAssigning(null); }}>編集</button>{' '}
-          <button disabled={i.compute_archived} onClick={() => { setAssigning(i); setEditing(null); }}>系列割当</button>
-        </td></tr>)}{!data.length && <tr><td colSpan={8}>該当なし</td></tr>}
-    </tbody></table></div>}
+          <Button disabled={i.compute_archived} onClick={() => { setEditing(i); setAssigning(null); }}>編集</Button>{' '}
+          <Button disabled={i.compute_archived} onClick={() => { setAssigning(i); setEditing(null); }}>系列割当</Button>
+        </td></tr>)}{!data.length && <tr><td colSpan={8}><EmptyState>該当なし</EmptyState></td></tr>}
+    </tbody></DataTable></div>}
   </section>;
 }
 
@@ -72,6 +72,6 @@ function InstallationForm({ installation: i, computeId, productId, onSaved, onCa
     {([['version', 'バージョン', 255], ['install_method', '導入方法', 100], ['install_path', '導入パス', 2048],
       ['config_path', '設定パス', 2048], ['last_verified_at', '最終確認日時（ISO 8601・タイムゾーン必須）', 50]] as const).map(([key, label, max]) =>
       <TextField key={key} label={label} maxLength={max} value={fields[key]} onChange={(v) => setFields({ ...fields, [key]: v })} />)}
-    <div className="form-actions"><button>保存</button><button type="button" onClick={onCancel}>キャンセル</button></div>
+    <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
   </fieldset></form>;
 }

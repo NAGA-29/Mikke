@@ -1,3 +1,4 @@
+import { Button, ErrorState } from './ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
@@ -102,8 +103,8 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
           {relationTypes.map((t) => <option key={t.code} value={t.code}>{t.label} ({t.code})</option>)}
         </select></label>
         {selectedType && <small>{selectedType.description} / {selectedType.is_directed ? '関係元 → 関係先' : '方向なし'}</small>}
-        {typeError && <p className="error" role="alert">関係種別を取得できません。<button type="button" onClick={() => setTypeAttempt((n) => n + 1)}>再試行</button></p>}
-        {sourceId && sourceId === targetId && <p className="error" role="alert">関係元と関係先は別の資産を選択してください。</p>}
+        {typeError && <ErrorState>関係種別を取得できません。<Button type="button" onClick={() => setTypeAttempt((n) => n + 1)}>再試行</Button></ErrorState>}
+        {sourceId && sourceId === targetId && <ErrorState>関係元と関係先は別の資産を選択してください。</ErrorState>}
         <label>説明<textarea name="description" maxLength={10000} /></label>
       </>}
       {selection.kind === 'app-repo' && <label>用途<select name="purpose" defaultValue="source">
@@ -125,8 +126,8 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
       </>}
       <FormError error={error} />
       <div className="form-actions">
-        <button type="submit" disabled={selection.kind === 'relation' && (!relationType || sourceId === targetId)}>{saving ? '保存中…' : '保存'}</button>
-        <button type="button" onClick={onCancel}>キャンセル</button>
+        <Button data-testid="form-submit" variant="primary" type="submit" disabled={selection.kind === 'relation' && (!relationType || sourceId === targetId)}>{saving ? '保存中…' : '保存'}</Button>
+        <Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button>
       </div>
     </fieldset>
   </form>;

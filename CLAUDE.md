@@ -18,7 +18,9 @@ PLUS9.inc（ArkEve）内部専用の軽量CMDB。インフラ資産・依存関�
 - DB: **PostgreSQL 18 必須**（`uuidv7()` を使用。16以下では動かない）
 - API: TypeScript / Node.js 22 / Hono / node-postgres（ORMなし、素のSQL）/ zod
 - テスト: Vitest + 実PostgreSQL（モックDBは使わない）
-- フロント（未着手）: React + Vite SPA、Canvas は React Flow
+- フロント（`apps/web`）: React + Vite SPA、Canvas は React Flow（@xyflow/react）
+- MCP: `apps/api/src/mcp`（stdio、15ツール。services/* を呼ぶ）
+- e2e: Playwright（`apps/e2e`）。実API＋使い捨てDB `mikke_e2e` を毎回作り直す
 - 認証: スコープ付きAPIトークン（SSOは後で差し込める構造）
 - pnpm workspaces（`apps/*`、pnpm 10。`minimumReleaseAge` で公開7日未満の版は入らない）
 
@@ -30,10 +32,11 @@ pnpm migrate      # ルートの .env を読む
 pnpm dev
 pnpm test             # mikke_test を毎回作り直す
 pnpm typecheck
+pnpm test:e2e         # 初回のみ pnpm --filter @mikke/e2e install-browsers。5432 の PostgreSQL 18 を使う
 pnpm --filter @mikke/api token <actor_id> mikke:read mikke:write
 ```
 
-コミット前に `pnpm typecheck` と `pnpm test` を必ず通す。
+コミット前に `pnpm typecheck` と `pnpm test` を必ず通す。UI を変えたときは `pnpm test:e2e` も通す（CI でも実行される）。
 
 ## 構成
 

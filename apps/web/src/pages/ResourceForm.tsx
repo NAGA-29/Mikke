@@ -1,3 +1,4 @@
+import { Button, ErrorState, LoadingState, PageHeader } from '../components/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
@@ -74,8 +75,8 @@ export function ResourceForm() {
       .catch((e: Error) => { if (live) setLoadError(e.message); });
     return () => { live = false; };
   }, [id]);
-  if (loadError) return <p role="alert" className="error">{loadError}</p>;
-  if (id && (!resource || resource.id !== id)) return <p>読み込み中…</p>;
+  if (loadError) return <ErrorState>{loadError}</ErrorState>;
+  if (id && (!resource || resource.id !== id)) return <LoadingState />;
   if (resource?.archived_at) return <section><p role="alert">アーカイブ済み資産は編集できません。</p><Link to={`/resources/${id}`}>詳細へ戻る</Link></section>;
   return <Editor key={id ?? 'new'} resource={resource} />;
 }
@@ -161,7 +162,7 @@ function Editor({ resource }: { resource: Resource | null }) {
 
   return <section>
     <p><Link to={cancelPath}>← {resource ? '詳細' : '一覧'}</Link></p>
-    <h2>{resource ? '資産の編集' : '新規登録'}</h2>
+    <PageHeader title={<>{resource ? '資産の編集' : '新規登録'}</>} />
     <p>必須項目は * で表示しています。認証情報や秘密情報は入力しないでください。</p>
     <form className="resource-form" autoComplete="off" onSubmit={submit}>
       <fieldset disabled={saving}>
@@ -182,22 +183,22 @@ function Editor({ resource }: { resource: Resource | null }) {
         {fields[type].map((field) => {
           const value = resource?.detail?.[field.name];
           return <label key={field.name}>{field.label}{field.required && ' *'}
-            {field.kind === 'boolean' ? <input type="checkbox" name={field.name} defaultChecked={value === true} />
-              : field.options ? <select name={field.name} required={field.required} defaultValue={typeof value === 'string' ? value : ''}>
+            {field.kind === 'boolean' ? <input type="checkbox" aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} defaultChecked={value === true} />
+              : field.options ? <select aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} required={field.required} defaultValue={typeof value === 'string' ? value : ''}>
                 <option value="">選択してください</option>
                 {field.options.map((v) => <option key={v} value={v}>{v}</option>)}
               </select>
-              : field.kind === 'attributes' ? <textarea name={field.name} rows={5} defaultValue={JSON.stringify(value ?? {}, null, 2)} onChange={(e) => checkSensitive(e.currentTarget)} />
-              : <input name={field.name} maxLength={field.max} required={field.required} defaultValue={typeof value === 'string' ? value : ''} onChange={(e) => checkSensitive(e.currentTarget)} />}
-            {field.hint && <small>{field.hint}</small>}
+              : field.kind === 'attributes' ? <textarea aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} rows={5} defaultValue={JSON.stringify(value ?? {}, null, 2)} onChange={(e) => checkSensitive(e.currentTarget)} />
+              : <input aria-describedby={field.hint ? `hint-${field.name}` : undefined} name={field.name} maxLength={field.max} required={field.required} defaultValue={typeof value === 'string' ? value : ''} onChange={(e) => checkSensitive(e.currentTarget)} />}
+            {field.hint && <small id={`hint-${field.name}`}>{field.hint}</small>}
           </label>;
         })}
       </fieldset>
-      {error && <div className="error" role="alert" tabIndex={-1}>
+      {error && <ErrorState tabIndex={-1}>
         <p>{error.message}</p>
         {!!error.issues?.length && <ul>{error.issues.map((issue, i) => <li key={i}>{issue.path || '入力'}: {issue.message}</li>)}</ul>}
-      </div>}
-      <p className="form-actions"><button type="submit" disabled={saving}>{saving ? '保存中…' : resource ? '変更を保存' : '登録'}</button><Link to={cancelPath}>キャンセル</Link></p>
+      </ErrorState>}
+      <p className="form-actions"><Button data-testid="form-submit" variant="primary" type="submit" disabled={saving}>{saving ? '保存中…' : resource ? '変更を保存' : '登録'}</Button><Link to={cancelPath}>キャンセル</Link></p>
     </form>
   </section>;
 }

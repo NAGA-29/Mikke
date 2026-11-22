@@ -17,10 +17,10 @@ export const EDGE_LABEL: Record<EdgeKind, string> = {
   relation: '依存・通信', deployment: 'デプロイ', hosting: 'ホスト', app_repository: 'アプリ↔Repo',
 };
 export const EDGE_COLOR: Record<EdgeKind, string> = {
-  relation: '#475569', deployment: '#1d4ed8', hosting: '#a21caf', app_repository: '#047857',
+  relation: 'var(--edge-relation)', deployment: 'var(--edge-deployment)', hosting: 'var(--edge-hosting)', app_repository: 'var(--edge-app-repository)',
 };
 export const NODE_COLOR: Record<ResourceType, string> = {
-  compute: '#dbeafe', application: '#dcfce7', service_instance: '#fae8ff', repository: '#ffedd5',
+  compute: 'var(--node-compute)', application: 'var(--node-application)', service_instance: 'var(--node-service)', repository: 'var(--node-repository)',
 };
 export type CanvasNode = Node<{ label: string; resource: GraphNode }>;
 export type CanvasEdge = Edge<{ canonical: GraphEdge; lane: number }>;

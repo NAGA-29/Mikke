@@ -1,3 +1,4 @@
+import { Button, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -19,26 +20,25 @@ export function ReleaseCycles() {
     setEditor(null); setRevision((n) => n + 1);
     setNotice(pending ? '承認待ちとして登録しました（HTTP 202）。日付はまだ変更されていません。' : '保存しました。');
   }
-  return <section><div className="page-heading"><h2>リリース系列・ライフサイクルイベント</h2>
-    <button onClick={() => setEditor({ kind: 'cycle', cycle: null })}>系列を登録</button></div>
+  return <section><PageHeader title="リリース系列・ライフサイクルイベント" actions={<Button variant="primary" data-testid="create-cycle" onClick={() => setEditor({ kind: 'cycle', cycle: null })}>系列を登録</Button>} />
     <p>稼働中の資産が使用する系列だけ登録します。公式に明示されていない終了日は登録しないでください。</p>
     <div className="filters"><ProductSelect optional value={productId} onChange={(v) => { setEditor(null); setSp(v ? { software_product_id: v } : {}); }} />
-      <button onClick={() => { setEditor(null); setRevision((n) => n + 1); }}>再読み込み</button><Link to="/software/lifecycle-event-change-requests">日付変更の承認キュー</Link></div>
+      <Button onClick={() => { setEditor(null); setRevision((n) => n + 1); }}>再読み込み</Button><Link to="/software/lifecycle-event-change-requests">日付変更の承認キュー</Link></div>
     {notice && <p role="status">{notice}</p>}<FormError error={error} scope="mikke:read" />
     {editor?.kind === 'cycle' && <CycleForm key={editor.cycle?.id ?? 'new'} cycle={editor.cycle} productId={productId} onSaved={() => saved()} onCancel={() => setEditor(null)} />}
     {editor?.kind === 'event' && <EventForm key={`${editor.cycle.id}-${editor.event?.id ?? 'new'}`} cycle={editor.cycle} event={editor.event} onSaved={saved} onCancel={() => setEditor(null)} />}
-    {!data && !error && <p>読み込み中…</p>}
+    {!data && !error && <LoadingState />}
     {data?.map((c) => <section key={c.id} className="cycle-card">
-      <div className="page-heading"><h3>{c.product_name} / {c.cycle}</h3><button onClick={() => setEditor({ kind: 'cycle', cycle: c })}>系列を編集</button></div>
+      <div className="page-heading"><h3>{c.product_name} / {c.cycle}</h3><Button onClick={() => setEditor({ kind: 'cycle', cycle: c })}>系列を編集</Button></div>
       <p>照合規則: {c.match_pattern ?? c.cycle} / 確認状態: {c.verification_status} / 稼働中の割当: {c.in_service_assignments}</p>
       <p>確認日時: {c.verified_at ?? '-'} / 確認者: {c.verified_by ?? '-'}</p>{c.notes && <p className="preserve-lines">{c.notes}</p>}
-      <button onClick={() => setEditor({ kind: 'event', cycle: c, event: null })}>イベントを登録</button>
-      <div className="reference-table"><table><thead><tr><th>種別</th><th>日付</th><th>根拠</th><th>確認日時</th><th>メモ</th><th>操作</th></tr></thead><tbody>
+      <Button variant="primary" data-testid="create-event" onClick={() => setEditor({ kind: 'event', cycle: c, event: null })}>イベントを登録</Button>
+      <div className="reference-table"><DataTable aria-label="ライフサイクルイベント一覧"><thead><tr><th scope="col">種別</th><th scope="col">日付</th><th scope="col">根拠</th><th scope="col">確認日時</th><th scope="col">メモ</th><th scope="col">操作</th></tr></thead><tbody>
         {c.events.map((ev) => <tr key={ev.id}><td>{ev.event_type}</td><td>{ev.event_date}</td><td>{ev.source_title ?? '-'}<br /><span className="source-text">{displaySourceUrl(ev.source_url)}</span></td>
-          <td>{ev.checked_at}</td><td className="preserve-lines">{ev.notes ?? '-'}</td><td><button onClick={() => setEditor({ kind: 'event', cycle: c, event: ev })}>イベントを編集</button></td></tr>)}
-        {!c.events.length && <tr><td colSpan={6}>イベントなし（終了日不明）</td></tr>}
-      </tbody></table></div>
-    </section>)}{data?.length === 0 && <p>該当なし</p>}
+          <td>{ev.checked_at}</td><td className="preserve-lines">{ev.notes ?? '-'}</td><td><Button onClick={() => setEditor({ kind: 'event', cycle: c, event: ev })}>イベントを編集</Button></td></tr>)}
+        {!c.events.length && <tr><td colSpan={6}><EmptyState>イベントなし（終了日不明）</EmptyState></td></tr>}
+      </tbody></DataTable></div>
+    </section>)}{data?.length === 0 && <EmptyState />}
   </section>;
 }
 
@@ -84,7 +84,7 @@ function CycleForm({ cycle: c, productId, onSaved, onCancel }: {
         <label><input type="checkbox" checked={allow} onChange={(e) => setAllow(e.target.checked)} />バージョン不一致を確認のうえ許可する</label>
       </>}
     </>}
-    <div className="form-actions"><button>保存</button><button type="button" onClick={onCancel}>キャンセル</button></div>
+    <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
   </fieldset></form>;
 }
 
@@ -117,6 +117,6 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
     <TextField label="根拠の確認日時（ISO 8601、例: 2026-11-22T09:00:00+09:00。未来不可）" required maxLength={50} value={fields.checked_at} onChange={(v) => setFields({ ...fields, checked_at: v })} />
     <label>メモ<textarea maxLength={10000} value={fields.notes} onChange={(e) => setFields({ ...fields, notes: e.target.value })} /></label>
     {ev && <label>変更理由・承認者への説明<textarea maxLength={10000} value={fields.change_note} onChange={(e) => setFields({ ...fields, change_note: e.target.value })} /></label>}
-    <div className="form-actions"><button>保存</button><button type="button" onClick={onCancel}>キャンセル</button></div>
+    <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
   </fieldset></form>;
 }

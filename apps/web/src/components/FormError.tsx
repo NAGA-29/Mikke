@@ -1,3 +1,4 @@
+import { ErrorState } from './ui';
 import { ApiError } from '../api';
 
 export function FormError({ error, scope = 'mikke:write' }: { error: unknown; scope?: 'mikke:read' | 'mikke:write' | 'mikke:eol:approve' | 'mikke:admin' }) {
@@ -31,7 +32,7 @@ export function FormError({ error, scope = 'mikke:write' }: { error: unknown; sc
       if (!issue || typeof issue !== 'object' || !('path' in issue) || typeof issue.path !== 'string') return [];
       return /^[a-z_]+$/.test(issue.path) ? [issue.path] : [];
     }) : [];
-  return <div className="error" role="alert"><p>{status && `HTTP ${status}: `}{message}</p>
+  return <ErrorState><p>{status && `HTTP ${status}: `}{message}</p>
     {paths.length > 0 && <p>確認する項目: {paths.join(', ')}</p>}
-  </div>;
+  </ErrorState>;
 }

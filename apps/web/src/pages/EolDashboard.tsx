@@ -1,3 +1,4 @@
+import { Badge, DataTable, EmptyState, LoadingState, PageHeader } from '../components/ui';
 import { Link, useSearchParams } from 'react-router-dom';
 import { FormError } from '../components/FormError';
 import { ResourcePicker } from '../components/ResourcePicker';
@@ -26,7 +27,7 @@ export function EolDashboard() {
     const next = new URLSearchParams(sp); if (value) next.set(key, value); else next.delete(key); setSp(next, { replace: true });
   }
   const items = data?.items.filter((i) => sp.get('needs_review') !== 'true' || i.needs_verification || i.cycle_mismatch);
-  return <section><h2>EOL ダッシュボード</h2>
+  return <section><PageHeader title="EOL ダッシュボード" />
     <p>稼働中の資産が対象です。終了日はAPIの判定を表示します。個別契約のサポート期限は別途確認してください。</p>
     <div className="filters">
       <label>状態<select value={sp.get('status') ?? ''} onChange={(e) => filter('status', e.target.value)}><option value="">すべて</option>
@@ -43,23 +44,23 @@ export function EolDashboard() {
       <label><input type="checkbox" checked={sp.get('needs_review') === 'true'} onChange={(e) => filter('needs_review', e.target.checked ? 'true' : '')} />要確認のみ（未検証・異議・版不一致）</label>
     </div>
     <ResourcePicker optional label="資産で絞り込み" value={sp.get('resource_id') ?? ''} onChange={(v) => filter('resource_id', v)} />
-    <FormError error={error} scope="mikke:read" />{!data && !error && <p>読み込み中…</p>}
+    <FormError error={error} scope="mikke:read" />{!data && !error && <LoadingState />}
     {data && items && <>
       <p>判定日: {data.as_of} / 期限接近: {data.thresholds.warning_days}日以内 / stale: 根拠確認から{data.thresholds.stale_days}日超</p>
       <p>現在のフィルタに一致する件数（対象単位、資産の重複あり）</p>
       <div className="summary" aria-label="状態別件数">{Object.entries(STATUSES).map(([v, label]) => <div key={v}>{label}<strong>{items.filter((i) => i.status === v).length}</strong></div>)}
         <div>stale<strong>{items.filter((i) => i.stale).length}</strong></div><div>要確認<strong>{items.filter((i) => i.needs_verification || i.cycle_mismatch).length}</strong></div>
       </div>
-      <div className="reference-table"><table><thead><tr><th>資産・対象</th><th>製品・版・系列</th><th>状態</th><th>終了日・根拠種別</th><th>確認日時</th><th>フラグ</th><th>操作</th></tr></thead><tbody>
+      <div className="reference-table"><DataTable aria-label="EOL判定一覧"><thead><tr><th scope="col">資産・対象</th><th scope="col">製品・版・系列</th><th scope="col">状態</th><th scope="col">終了日・根拠種別</th><th scope="col">確認日時</th><th scope="col">フラグ</th><th scope="col">操作</th></tr></thead><tbody>
         {items.map((i) => <tr key={`${i.target_kind}-${i.target_id}`}><td><Link to={`/resources/${i.resource.id}`}>{i.resource.name}</Link><br />{i.target_kind}</td>
           <td>{i.product?.name ?? '製品不明'} / {i.version ?? '版不明'} / {i.release_cycle?.cycle ?? '系列未割当'}</td>
-          <td>{STATUSES[i.status]}{i.reason && <p>{REASONS[i.reason] ?? '要確認'}</p>}</td>
-          <td>{i.end_date ?? '不明'} / {i.end_basis ?? '-'}{i.days_remaining !== null && <p>残り {i.days_remaining} 日</p>}</td>
-          <td>{i.checked_at ?? '-'}</td><td>{i.stale && <span className="badge">stale</span>}{i.needs_verification && <span className="badge">要確認: {i.release_cycle?.verification_status}</span>}{i.cycle_mismatch && <span className="badge">版不一致</span>}</td>
+          <td><Badge status={i.status} />{i.reason && <p>{REASONS[i.reason] ?? '要確認'}</p>}</td>
+          <td className="numeric">{i.end_date ?? '不明'} / {i.end_basis ?? '-'}{i.days_remaining !== null && <p>残り {i.days_remaining} 日</p>}</td>
+          <td>{i.checked_at ?? '-'}</td><td>{i.stale && <Badge>stale</Badge>}{i.needs_verification && <Badge>要確認: {i.release_cycle?.verification_status}</Badge>}{i.cycle_mismatch && <Badge>版不一致</Badge>}</td>
           <td>{i.product && <Link to={`/software/release-cycles?software_product_id=${i.product.id}`}>系列・根拠を編集</Link>}<br />
             {i.target_kind === 'installation' ? <Link to={`/software/installations?compute_asset_id=${i.resource.id}`}>導入・割当</Link> : <Link to={`/resources/${i.resource.id}`}>系列割当</Link>}</td>
-        </tr>)}{!items.length && <tr><td colSpan={7}>該当なし</td></tr>}
-      </tbody></table></div>
+        </tr>)}{!items.length && <tr><td colSpan={7}><EmptyState>該当なし</EmptyState></td></tr>}
+      </tbody></DataTable></div>
     </>}
   </section>;
 }

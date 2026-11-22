@@ -1,3 +1,4 @@
+import { Button, LoadingState, PageHeader } from '../components/ui';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Background, Controls, MiniMap, ReactFlow, useNodesState, useEdgesState, type ReactFlowInstance } from '@xyflow/react';
@@ -71,16 +72,15 @@ function Canvas({ id }: { id: string }) {
   const locked = busy || loading || !!connection || !!deleting;
   const name = (resourceId: string) => graph?.nodes.find((n) => n.resource_id === resourceId)?.name ?? resourceId;
   return <section className="canvas-page"><Link to="/diagrams">← 構成図一覧</Link>
-    <div className="page-heading"><h2>{graph?.diagram.name ?? '構成図'}</h2>
-      <button disabled={locked} onClick={() => { setLoading(true); void mutate(async () => {}).finally(() => setLoading(false)); }}>再読み込み</button></div>
+    <PageHeader title={<>{graph?.diagram.name ?? '構成図'}</>} actions={<Button disabled={locked} onClick={() => { setLoading(true); void mutate(async () => {}).finally(() => setLoading(false)); }}>再読み込み</Button>} />
     <CanvasError error={error} /><CanvasError error={positions.error} />
     <div className="form-actions"><span role="status">{positions.status}</span>
-      {!!positions.error && <button disabled={locked} onClick={() => void mutate(async () => {})}>位置の保存を再試行</button>}
-      <button disabled={locked || !graph} onClick={() => void mutate(async () => {
+      {!!positions.error && <Button disabled={locked} onClick={() => void mutate(async () => {})}>位置の保存を再試行</Button>}
+      <Button disabled={locked || !graph} onClick={() => void mutate(async () => {
         const viewport = flow.current?.getViewport();
         if (viewport) await api(base, { method: 'PATCH', json: { viewport } });
-      })}>現在の表示範囲を保存</button></div>
-    {loading && <p role="status">読み込み中…</p>}
+      })}>現在の表示範囲を保存</Button></div>
+    {loading && <LoadingState />}
     {graph && <>
       <p>右の端子から接続先の左の端子へドラッグして登録。ノード・線を選ぶと操作を表示します。位置はドラッグ後に自動保存されます。</p>
       <div className="canvas-legend">{Object.entries(EDGE_LABEL).map(([kind, label]) => <span key={kind} style={{ borderColor: EDGE_COLOR[kind as keyof typeof EDGE_COLOR] }}>{label} ({kind})</span>)}</div>
@@ -124,26 +124,26 @@ function Canvas({ id }: { id: string }) {
           setResourceId('');
         }); }}><fieldset disabled={locked}><legend>資産をこの図に配置</legend>
           <ResourcePicker label="資産" value={resourceId} onChange={setResourceId} />
-          <button disabled={!resourceId}>配置する</button>
+          <Button variant="primary" data-testid="form-submit" disabled={!resourceId}>配置する</Button>
         </fieldset></form>
         {selectedNode && <div className="canvas-confirm"><h3>{selectedNode.name}</h3>
           {selectedNode.archived && <p>⚠ アーカイブ済み・要確認</p>}
           <p><Link to={`/resources/${selectedNode.resource_id}`}>資産詳細</Link></p>
           <p>この図の配置だけを除去します。資産・正本の関係は保持されます。</p>
-          <button disabled={locked} onClick={() => void mutate(() => api(`${base}/nodes/${selectedNode.id}`, { method: 'DELETE' }))}>この図から配置を除去</button>
+          <Button variant="danger" disabled={locked} onClick={() => void mutate(() => api(`${base}/nodes/${selectedNode.id}`, { method: 'DELETE' }))}>この図から配置を除去</Button>
         </div>}
         {selectedEdge && <div className="canvas-confirm"><h3>{EDGE_LABEL[selectedEdge.edge_kind]}: {selectedEdge.label}</h3>
           <p>{name(selectedEdge.source_resource_id)} → {name(selectedEdge.target_resource_id)}</p>
           <p>「隠す」はこの図のみ。「正本の削除・解除」は全図・MCPに反映されます。</p>
-          <div className="form-actions"><button disabled={locked} onClick={() => void mutate(() => api(`${base}/hidden-edges`, {
+          <div className="form-actions"><Button disabled={locked} onClick={() => void mutate(() => api(`${base}/hidden-edges`, {
             method: 'POST', json: { edge_kind: selectedEdge.edge_kind, edge_record_id: selectedEdge.edge_record_id },
-          }))}>この図で隠す</button>
-          <button disabled={locked} onClick={() => void openCanonicalDialog(() => setDeleting(selectedEdge))}>正本の削除・解除を確認</button></div>
+          }))}>この図で隠す</Button>
+          <Button variant="danger" disabled={locked} onClick={() => void openCanonicalDialog(() => setDeleting(selectedEdge))}>正本の削除・解除を確認</Button></div>
         </div>}
       </div>
       <details><summary>この図の非表示設定（{hidden.length}件）</summary><ul>{hidden.map((h) => <li key={edgeId(h)}>
         {EDGE_LABEL[h.edge_kind]} / {h.edge_record_id}{' '}
-        <button disabled={locked} onClick={() => void mutate(() => api(`${base}/hidden-edges/${h.edge_kind}/${h.edge_record_id}`, { method: 'DELETE' }))}>この図に再表示</button>
+        <Button disabled={locked} onClick={() => void mutate(() => api(`${base}/hidden-edges/${h.edge_kind}/${h.edge_record_id}`, { method: 'DELETE' }))}>この図に再表示</Button>
       </li>)}</ul><p>両端の資産が配置されている場合に再表示されます。</p></details>
     </>}
     {connection && <ConnectionDialog {...connection} onSaved={afterCanonicalChange} onClose={() => setConnection(null)} />}

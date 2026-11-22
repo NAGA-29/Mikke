@@ -1,3 +1,4 @@
+import { Button } from './ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api } from '../api';
 import { connectionCommand, EDGE_LABEL, suggestedConnectionKind, type EdgeKind, type GraphNode } from '../lib/graph';
@@ -66,10 +67,10 @@ export function ConnectionDialog({ source, target, onSaved, onClose }: {
           {['source', 'config', 'infra', 'other'].map((v) => <option key={v}>{v}</option>)}
         </select></label>}
         {kind === 'hosting' && <p>サービスの host_compute_id を更新します。{host ? `現在のホスト（${host}）を置き換えます。` : 'ホストは1台のみ指定できます。'}</p>}
-        <CanvasError error={loadError} />{!!loadError && <button type="button" onClick={() => setAttempt((n) => n + 1)}>取得を再試行</button>}
+        <CanvasError error={loadError} />{!!loadError && <Button type="button" onClick={() => setAttempt((n) => n + 1)}>取得を再試行</Button>}
         <CanvasError error={error} />
-        <div className="form-actions"><button disabled={!!loadError || (kind === 'hosting' && source.resource_type === 'service_instance' && host === undefined)}>接続を保存</button>
-          <button type="button" onClick={onClose}>キャンセル</button></div>
+        <div className="form-actions"><Button variant="primary" data-testid="dialog-confirm" disabled={!!loadError || (kind === 'hosting' && source.resource_type === 'service_instance' && host === undefined)}>接続を保存</Button>
+          <Button data-testid="dialog-cancel" type="button" onClick={onClose}>キャンセル</Button></div>
       </fieldset>
     </form>
   </dialog>;

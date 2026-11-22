@@ -1,3 +1,4 @@
+import { Badge, Button, DataTable, EmptyState, LoadingState, ErrorState } from './ui';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type Resource } from '../api';
@@ -8,20 +9,20 @@ import type { Deployment, ResourceReferencesData } from './referenceTypes';
 function ReferenceTable<T>({ caption, items, headings, cells }: {
   caption: string; items: T[]; headings: string[]; cells: (item: T) => ReactNode[];
 }) {
-  return <div className="reference-table"><table>
+  return <div className="reference-table"><DataTable aria-label={caption}>
     <caption>{caption}</caption>
     <thead><tr>{headings.map((heading) => <th scope="col" key={heading}>{heading}</th>)}</tr></thead>
     <tbody>{items.map((item, i) => <tr key={i}>{cells(item).map((cell, j) => <td key={j}>{cell ?? '-'}</td>)}</tr>)}
-      {items.length === 0 && <tr><td colSpan={headings.length}>参照なし</td></tr>}
+      {items.length === 0 && <tr><td colSpan={headings.length}><EmptyState>参照なし</EmptyState></td></tr>}
     </tbody>
-  </table></div>;
+  </DataTable></div>;
 }
 
 function DeleteReference({ path, label, onDeleted }: { path: string; label: string; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  if (!confirming) return <button type="button" onClick={() => setConfirming(true)}>削除</button>;
+  if (!confirming) return <Button variant="danger" type="button" onClick={() => setConfirming(true)}>削除</Button>;
   return <form onSubmit={async (e) => {
     e.preventDefault();
     setSaving(true);
@@ -34,8 +35,8 @@ function DeleteReference({ path, label, onDeleted }: { path: string; label: stri
       <legend>{label}の削除確認</legend>
       <p>この関係を削除します。すべての図にも反映されます。</p>
       <FormError error={error} />
-      <div className="form-actions"><button type="submit">{saving ? '削除中…' : '削除を確定'}</button>
-        <button type="button" onClick={() => { setConfirming(false); setError(null); }}>キャンセル</button></div>
+      <div className="form-actions"><Button data-testid="dialog-confirm" variant="danger" type="submit">{saving ? '削除中…' : '削除を確定'}</Button>
+        <Button data-testid="dialog-cancel" type="button" onClick={() => { setConfirming(false); setError(null); }}>キャンセル</Button></div>
     </fieldset>
   </form>;
 }
@@ -98,7 +99,7 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
   function resourceLink(id: string | null) {
     if (!id) return '-';
     const r = names[id];
-    return <><Link to={`/resources/${id}`}>{r?.name ?? id}</Link>{r?.archived_at && <span className="badge">アーカイブ済み</span>}</>;
+    return <><Link to={`/resources/${id}`}>{r?.name ?? id}</Link>{r?.archived_at && <Badge status="archived" />}</>;
   }
   function saved() { setEditor(null); setNotice('保存しました。'); reload(); }
   function deleted() { setNotice('削除しました。'); reload(); }
@@ -106,21 +107,21 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
     return <ReferenceTable caption={caption} items={rows}
       headings={['アプリケーション', '配置先', '使用Repo', '環境', '状態', '配置パス', '方法', 'リビジョン', 'デプロイ日時', '操作']}
       cells={(d) => [resourceLink(d.application_id), resourceLink(d.target_resource_id), resourceLink(d.repository_id), d.environment,
-        d.status, d.deploy_path, d.deploy_method, d.revision, d.deployed_at,
-        !readOnly && <button type="button" disabled={!!editor || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</button>]} />;
+        <Badge status={d.status} />, d.deploy_path, d.deploy_method, d.revision, d.deployed_at,
+        !readOnly && <Button type="button" disabled={!!editor || loading} onClick={() => setEditor({ kind: 'deployment', deployment: d })}>編集</Button>]} />;
   }
   const canCreate = !readOnly && !resource.archived_at && !loading && !error && !editor;
   return <section aria-label="参照">
-    <div className="page-heading"><h3>参照</h3><button type="button" disabled={loading} onClick={reload}>再読み込み</button></div>
+    <div className="page-heading"><h3>参照</h3><Button type="button" disabled={loading} onClick={reload}>再読み込み</Button></div>
     {notice && <p role="status">{notice}</p>}
-    {loading && <p role="status">参照を読み込み中…</p>}
+    {loading && <LoadingState>参照を読み込み中…</LoadingState>}
     <FormError error={error} scope="mikke:read" />
-    {lookupFailed && <p role="alert" className="error">一部の名前を取得できませんでした。IDで表示しています。再読み込みで再試行できます。</p>}
+    {lookupFailed && <ErrorState>一部の名前を取得できませんでした。IDで表示しています。再読み込みで再試行できます。</ErrorState>}
     {editor && <ReferenceEditor key={editor.kind === 'deployment' ? `deployment-${editor.deployment?.id ?? 'new'}` : editor.kind === 'relation' ? `relation-${editor.direction}` : 'app-repo'}
       selection={editor} resource={resource} onSaved={saved} onCancel={() => setEditor(null)} />}
     {refs && <>
       <h4>デプロイ</h4>
-      <button type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'deployment' })}>デプロイを登録</button>
+      <Button variant="primary" data-testid="create-deployment" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'deployment' })}>デプロイを登録</Button>
       {deploymentTable('アプリケーション側', refs.deployments_as_application)}
       {deploymentTable('配置先側', refs.deployments_as_target)}
       {deploymentTable('リポジトリ側', refs.deployments_as_repository)}
@@ -128,15 +129,15 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
       <ReferenceTable caption="ホスト先" items={refs.host ? [refs.host] : []} headings={['コンピュート']} cells={(host) => [resourceLink(host.id)]} />
       <h4>依存関係</h4>
       <div className="form-actions">
-        <button type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'relation', direction: 'out' })}>この資産からの関係を登録</button>
-        <button type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'relation', direction: 'in' })}>この資産への関係を登録</button>
+        <Button variant="primary" data-testid="create-relation-out" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'relation', direction: 'out' })}>この資産からの関係を登録</Button>
+        <Button variant="primary" data-testid="create-relation-in" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'relation', direction: 'in' })}>この資産への関係を登録</Button>
       </div>
       {(['out', 'in'] as const).map((direction) => <ReferenceTable key={direction} caption={direction === 'out' ? '出方向（関係元 → 関係先）' : '入方向（関係元 → 関係先）'}
         items={direction === 'out' ? refs.relations_out : refs.relations_in} headings={['関係元', '種別', '関係先', '説明', '操作']}
         cells={(r) => [resourceLink(r.source_resource_id), r.relation_type, resourceLink(r.target_resource_id), r.description,
           !readOnly && <DeleteReference key={r.id} path={`/relations/${r.id}`} label="依存関係" onDeleted={deleted} />]} />)}
       <h4>アプリケーション↔リポジトリ</h4>
-      {['application', 'repository'].includes(resource.resource_type) && <button type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'app-repo' })}>リンクを登録</button>}
+      {['application', 'repository'].includes(resource.resource_type) && <Button variant="primary" data-testid="create-app-repo" type="button" disabled={!canCreate} onClick={() => setEditor({ kind: 'app-repo' })}>リンクを登録</Button>}
       <ReferenceTable caption="アプリケーション↔リポジトリのリンク" items={refs.application_repositories} headings={['アプリケーション', 'リポジトリ', '用途', '操作']}
         cells={(r) => [resourceLink(r.application_id), resourceLink(r.repository_id), r.purpose,
           !readOnly && <DeleteReference key={r.id} path={`/application-repositories/${r.id}`} label="アプリ↔Repoリンク" onDeleted={deleted} />]} />
@@ -144,7 +145,7 @@ export function ResourceReferences({ resource, readOnly = false, onReadyChange }
         headings={['コンピュート', '製品', 'バージョン', 'リリース系列', '導入方法', '導入パス', '設定パス', '最終確認']}
         cells={(i) => [resourceLink(i.compute_asset_id), installations[i.id]?.product_name ?? i.software_product_id, i.version,
           installations[i.id]?.release_cycle ?? i.release_cycle_id, i.install_method, i.install_path, i.config_path, i.last_verified_at]} />
-      <ReferenceTable caption="図への配置（Diagram APIは未実装）" items={refs.diagram_ids} headings={['図ID']} cells={(id) => [id]} />
+      <ReferenceTable caption="図への配置" items={refs.diagram_ids} headings={['図']} cells={(id) => [<Link key={id} to={`/diagrams/${id}`}>{id}</Link>]} />
     </>}
   </section>;
 }
