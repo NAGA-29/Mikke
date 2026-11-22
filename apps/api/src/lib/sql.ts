@@ -31,6 +31,9 @@ export async function insertRow<T>(db: Queryable, table: string, row: Record<str
   const entries = Object.entries(row).filter(([, v]) => v !== undefined);
   const cols = entries.map(([k]) => k).join(', ');
   const params = entries.map((_, i) => `$${i + 1}`).join(', ');
-  const res = await db.query(`INSERT INTO ${table} (${cols}) VALUES (${params}) RETURNING *`, entries.map(([, v]) => toParam(v)));
+  const res = await db.query(
+    `INSERT INTO ${table} (${cols}) VALUES (${params}) RETURNING *`,
+    entries.map(([, v]) => toParam(v)),
+  );
   return res.rows[0] as T;
 }

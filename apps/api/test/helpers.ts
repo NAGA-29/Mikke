@@ -73,7 +73,12 @@ export async function call<T = any>(method: string, path: string, opts: { as?: W
 }
 
 /** 期待ステータスでなければ本文付きで失敗させる */
-export async function ok<T = any>(method: string, path: string, opts: { as?: Who | null; body?: unknown } = {}, expected = [200, 201, 204]) {
+export async function ok<T = any>(
+  method: string,
+  path: string,
+  opts: { as?: Who | null; body?: unknown } = {},
+  expected = [200, 201, 204],
+) {
   const r = await call<T>(method, path, opts);
   if (!expected.includes(r.status)) throw new Error(`${method} ${path} -> ${r.status}: ${JSON.stringify(r.body)}`);
   return r.body;

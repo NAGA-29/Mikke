@@ -8,17 +8,17 @@ import { insertRow, updateColumns } from '../lib/sql.js';
 import { attributes, optStr, parse, reqStr, uuid } from '../lib/validation.js';
 import { requireResource } from './common.js';
 
-const viewport = z.union([
-  z.strictObject({}),
-  z.strictObject({ x: z.number(), y: z.number(), zoom: z.number().positive() }),
-]);
+const viewport = z.union([z.strictObject({}), z.strictObject({ x: z.number(), y: z.number(), zoom: z.number().positive() })]);
 const diagramSchema = z.strictObject({ name: reqStr(255), description: optStr(10_000), viewport: viewport.optional() });
 const placementSchema = z.strictObject({
-  position_x: z.number(), position_y: z.number(), display_options: attributes.optional(),
+  position_x: z.number(),
+  position_y: z.number(),
+  display_options: attributes.optional(),
 });
 const edgeKind = z.enum(['relation', 'deployment', 'hosting', 'app_repository']);
 const edgeStyleSchema = z.strictObject({
-  edge_kind: edgeKind, edge_record_id: uuid,
+  edge_kind: edgeKind,
+  edge_record_id: uuid,
   line_style: z.enum(['solid', 'dashed', 'dotted', 'wavy']),
   arrow_style: z.enum(['closed', 'open', 'none']),
 });
@@ -32,10 +32,13 @@ export async function getDiagram(db: Queryable, id: string, lock = false) {
 }
 
 export async function listDiagrams(db: Queryable, query: unknown) {
-  const f = parse(z.strictObject({
-    limit: z.coerce.number().int().min(1).max(500).default(100),
-    offset: z.coerce.number().int().min(0).default(0),
-  }), query);
+  const f = parse(
+    z.strictObject({
+      limit: z.coerce.number().int().min(1).max(500).default(100),
+      offset: z.coerce.number().int().min(0).default(0),
+    }),
+    query,
+  );
   return many(db, 'SELECT * FROM diagrams ORDER BY created_at, id LIMIT $1 OFFSET $2', [f.limit, f.offset]);
 }
 
@@ -60,7 +63,13 @@ export async function deleteDiagram(tx: PoolClient, actor: Actor, id: string) {
   const hidden_edges = await many(tx, 'SELECT * FROM diagram_hidden_edges WHERE diagram_id = $1 ORDER BY edge_kind, edge_record_id', [id]);
   const edge_styles = await many(tx, 'SELECT * FROM diagram_edge_styles WHERE diagram_id = $1 ORDER BY edge_kind, edge_record_id', [id]);
   await tx.query('DELETE FROM diagrams WHERE id = $1', [id]);
-  await recordAudit(tx, { actorId: actor.id, action: 'delete', entityType: 'diagram', entityId: id, before: { ...before, nodes, hidden_edges, edge_styles } });
+  await recordAudit(tx, {
+    actorId: actor.id,
+    action: 'delete',
+    entityType: 'diagram',
+    entityId: id,
+    before: { ...before, nodes, hidden_edges, edge_styles },
+  });
 }
 
 export async function listNodes(db: Queryable, id: string) {
@@ -69,7 +78,10 @@ export async function listNodes(db: Queryable, id: string) {
 }
 
 export async function getNode(db: Queryable, diagramId: string, nodeId: string, lock = false) {
-  const row = await one(db, `SELECT * FROM diagram_nodes WHERE diagram_id = $1 AND id = $2${lock ? ' FOR UPDATE' : ''}`, [diagramId, nodeId]);
+  const row = await one(db, `SELECT * FROM diagram_nodes WHERE diagram_id = $1 AND id = $2${lock ? ' FOR UPDATE' : ''}`, [
+    diagramId,
+    nodeId,
+  ]);
   if (!row) throw notFound('diagram node', nodeId);
   return row;
 }
@@ -115,7 +127,7 @@ async function lockEdge(tx: PoolClient, edge: Edge) {
     await tx.query('SELECT 1 FROM resources WHERE id = $1 FOR SHARE', [link.application_id]);
   }
   const table = { relation: 'resource_relations', deployment: 'deployments', app_repository: 'application_repositories' }[edge.edge_kind];
-  if (!await one(tx, `SELECT 1 FROM ${table} WHERE id = $1 FOR SHARE`, [id])) throw notFound(`${edge.edge_kind} edge`, id);
+  if (!(await one(tx, `SELECT 1 FROM ${table} WHERE id = $1 FOR SHARE`, [id]))) throw notFound(`${edge.edge_kind} edge`, id);
 }
 
 export async function listHiddenEdges(db: Queryable, id: string) {
@@ -127,10 +139,21 @@ export async function hideEdge(tx: PoolClient, actor: Actor, id: string, body: u
   const edge = parse(edgeSchema, body);
   await lockEdge(tx, edge);
   await getDiagram(tx, id, true);
-  const row = await one(tx, `INSERT INTO diagram_hidden_edges (diagram_id, edge_kind, edge_record_id)
-    VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *`, [id, edge.edge_kind, edge.edge_record_id]);
+  const row = await one(
+    tx,
+    `INSERT INTO diagram_hidden_edges (diagram_id, edge_kind, edge_record_id)
+    VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING *`,
+    [id, edge.edge_kind, edge.edge_record_id],
+  );
   if (row) await recordAudit(tx, { actorId: actor.id, action: 'create', entityType: 'diagram_hidden_edge', entityId: id, after: row });
-  return row ?? await one(tx, 'SELECT * FROM diagram_hidden_edges WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3', [id, edge.edge_kind, edge.edge_record_id]);
+  return (
+    row ??
+    (await one(tx, 'SELECT * FROM diagram_hidden_edges WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3', [
+      id,
+      edge.edge_kind,
+      edge.edge_record_id,
+    ]))
+  );
 }
 
 export async function listEdgeStyles(db: Queryable, id: string) {
@@ -143,12 +166,27 @@ export async function setEdgeStyle(tx: PoolClient, actor: Actor, id: string, bod
   const input = parse(edgeStyleSchema, body);
   await lockEdge(tx, input);
   await getDiagram(tx, id, true);
-  const before = await one(tx, 'SELECT * FROM diagram_edge_styles WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 FOR UPDATE', [id, input.edge_kind, input.edge_record_id]);
-  const row = await one(tx, `INSERT INTO diagram_edge_styles (diagram_id, edge_kind, edge_record_id, line_style, arrow_style)
+  const before = await one(
+    tx,
+    'SELECT * FROM diagram_edge_styles WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 FOR UPDATE',
+    [id, input.edge_kind, input.edge_record_id],
+  );
+  const row = await one(
+    tx,
+    `INSERT INTO diagram_edge_styles (diagram_id, edge_kind, edge_record_id, line_style, arrow_style)
     VALUES ($1, $2, $3, $4, $5)
     ON CONFLICT (diagram_id, edge_kind, edge_record_id) DO UPDATE SET line_style = EXCLUDED.line_style, arrow_style = EXCLUDED.arrow_style
-    RETURNING *`, [id, input.edge_kind, input.edge_record_id, input.line_style, input.arrow_style]);
-  await recordAudit(tx, { actorId: actor.id, action: before ? 'update' : 'create', entityType: 'diagram_edge_style', entityId: id, before: before ?? undefined, after: row });
+    RETURNING *`,
+    [id, input.edge_kind, input.edge_record_id, input.line_style, input.arrow_style],
+  );
+  await recordAudit(tx, {
+    actorId: actor.id,
+    action: before ? 'update' : 'create',
+    entityType: 'diagram_edge_style',
+    entityId: id,
+    before: before ?? undefined,
+    after: row,
+  });
   return row;
 }
 
@@ -156,14 +194,22 @@ export async function setEdgeStyle(tx: PoolClient, actor: Actor, id: string, bod
 export async function resetEdgeStyle(tx: PoolClient, actor: Actor, id: string, kind: string, recordId: string) {
   const edge = parse(edgeSchema, { edge_kind: kind, edge_record_id: recordId });
   await getDiagram(tx, id, true);
-  const before = await one(tx, 'DELETE FROM diagram_edge_styles WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 RETURNING *', [id, edge.edge_kind, edge.edge_record_id]);
+  const before = await one(
+    tx,
+    'DELETE FROM diagram_edge_styles WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 RETURNING *',
+    [id, edge.edge_kind, edge.edge_record_id],
+  );
   if (before) await recordAudit(tx, { actorId: actor.id, action: 'delete', entityType: 'diagram_edge_style', entityId: id, before });
 }
 
 export async function unhideEdge(tx: PoolClient, actor: Actor, id: string, kind: string, recordId: string) {
   const edge = parse(edgeSchema, { edge_kind: kind, edge_record_id: recordId });
   await getDiagram(tx, id, true);
-  const before = await one(tx, `DELETE FROM diagram_hidden_edges WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 RETURNING *`, [id, edge.edge_kind, edge.edge_record_id]);
+  const before = await one(
+    tx,
+    `DELETE FROM diagram_hidden_edges WHERE diagram_id = $1 AND edge_kind = $2 AND edge_record_id = $3 RETURNING *`,
+    [id, edge.edge_kind, edge.edge_record_id],
+  );
   if (before) await recordAudit(tx, { actorId: actor.id, action: 'delete', entityType: 'diagram_hidden_edge', entityId: id, before });
 }
 
@@ -185,7 +231,9 @@ export const GRAPH_EDGES_SQL = `
 export async function getGraph(db: Queryable, query: unknown) {
   const { diagram_id: id } = parse(z.strictObject({ diagram_id: uuid }), query);
   // 1文で取得し、ノード・エッジ・図の存在を同一スナップショットで評価する。
-  const result = await one(db, `WITH nodes AS (
+  const result = await one(
+    db,
+    `WITH nodes AS (
     SELECT n.*, r.name, r.resource_type, r.lifecycle_status, r.archived_at,
            (r.archived_at IS NOT NULL) AS archived,
            -- 表示用の細分類（形状の出し分け）。正本は各詳細テーブルで、ここでは複製せず参照のみ
@@ -205,7 +253,9 @@ export async function getGraph(db: Queryable, query: unknown) {
         AND EXISTS (SELECT 1 FROM nodes WHERE resource_id = e.target_resource_id)
         AND NOT EXISTS (SELECT 1 FROM diagram_hidden_edges h WHERE h.diagram_id = $1
           AND h.edge_kind = e.edge_kind AND h.edge_record_id = e.edge_record_id)) AS edges
-    FROM diagrams d WHERE d.id = $1`, [id]);
+    FROM diagrams d WHERE d.id = $1`,
+    [id],
+  );
   if (!result) throw notFound('diagram', id);
   return result;
 }

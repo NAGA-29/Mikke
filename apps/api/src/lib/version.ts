@@ -10,7 +10,11 @@
 const TOKEN = /^[0-9a-z][0-9a-z.+_~-]*$/;
 const MAX_ALTERNATIVES = 16;
 
-const normalize = (s: string) => s.trim().toLowerCase().replace(/^v(?=\d)/, '');
+const normalize = (s: string) =>
+  s
+    .trim()
+    .toLowerCase()
+    .replace(/^v(?=\d)/, '');
 
 export function parsePattern(pattern: string): string[] | null {
   const parts = pattern

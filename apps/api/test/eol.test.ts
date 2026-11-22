@@ -83,14 +83,22 @@ describe('release cycles & lifecycle events (MVP受け入れ基準8,9)', () => {
     const { php, inst } = await phpOnVps('8.3.1');
     const node = await create.product('Node.js');
     const vps2 = await create.compute('vps2');
-    const nodeInst = await ok('POST', '/software/installations', { body: { compute_asset_id: vps2.id, software_product_id: node.id, version: '22.1.0' } });
+    const nodeInst = await ok('POST', '/software/installations', {
+      body: { compute_asset_id: vps2.id, software_product_id: node.id, version: '22.1.0' },
+    });
     const nodeCycle = await ok('POST', '/software/release-cycles', { body: { software_product_id: node.id, cycle: '22' } });
 
-    const wrongProduct = await call('PUT', `/software/installations/${inst.id}/release-cycle`, { body: { release_cycle_id: nodeCycle.id } });
+    const wrongProduct = await call('PUT', `/software/installations/${inst.id}/release-cycle`, {
+      body: { release_cycle_id: nodeCycle.id },
+    });
     expect(wrongProduct.body.error.code).toBe('product_mismatch');
 
     const php84 = await ok('POST', '/software/release-cycles', {
-      body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: nodeInst.id, allow_version_mismatch: true } },
+      body: {
+        software_product_id: php.id,
+        cycle: '8.4',
+        assign_to: { target_kind: 'installation', target_id: nodeInst.id, allow_version_mismatch: true },
+      },
     }).catch((e) => e);
     expect(String(php84)).toMatch(/product_mismatch/); // 別製品の導入には紐付けられず、系列作成もロールバック
     expect(await ok('GET', `/software/release-cycles?software_product_id=${php.id}`)).toHaveLength(0);
@@ -102,12 +110,26 @@ describe('release cycles & lifecycle events (MVP受け入れ基準8,9)', () => {
       body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
     });
     const ev = await ok('POST', '/software/lifecycle-events', {
-      body: { release_cycle_id: cycle.id, event_type: 'security_support_end', event_date: '2028-12-31', source_url: SRC, checked_at: checked() },
+      body: {
+        release_cycle_id: cycle.id,
+        event_type: 'security_support_end',
+        event_date: '2028-12-31',
+        source_url: SRC,
+        checked_at: checked(),
+      },
     });
     const put = (as: 'writer' | 'approver', patch: Record<string, unknown>, expected = ev.updated_at) =>
       call('PUT', `/software/lifecycle-events/${ev.id}`, {
         as,
-        body: { event_date: ev.event_date, source_url: SRC, source_title: null, checked_at: checked(), notes: null, expected_updated_at: expected, ...patch },
+        body: {
+          event_date: ev.event_date,
+          source_url: SRC,
+          source_title: null,
+          checked_at: checked(),
+          notes: null,
+          expected_updated_at: expected,
+          ...patch,
+        },
       });
 
     // 日付以外（確認日時・注記）の更新は write で可能
@@ -133,7 +155,9 @@ describe('release cycles & lifecycle events (MVP受け入れ基準8,9)', () => {
     const logs = await ok('GET', `/audit-logs?entity_type=software_lifecycle_event&entity_id=${ev.id}`);
     expect(logs[0].before_data.event_date).toBe('2028-12-31');
     // 承認者が直接更新したので、提案は事前状態が変わり承認できない（stale）
-    const stalePending = await call('POST', `/software/lifecycle-event-change-requests/${pending.body.change_request.id}/approve`, { as: 'approver' });
+    const stalePending = await call('POST', `/software/lifecycle-event-change-requests/${pending.body.change_request.id}/approve`, {
+      as: 'approver',
+    });
     expect(stalePending.status).toBe(409);
     expect(logs[0].after_data.event_date).toBe('2029-06-30');
   });
@@ -150,7 +174,14 @@ describe('lifecycle event change requests (承認待ちキュー)', () => {
     });
     const propose = async (date: string, base = ev.updated_at) =>
       call('PUT', `/software/lifecycle-events/${ev.id}`, {
-        body: { event_date: date, source_url: SRC, source_title: 'PHP Supported Versions', checked_at: checked(), notes: null, expected_updated_at: base },
+        body: {
+          event_date: date,
+          source_url: SRC,
+          source_title: 'PHP Supported Versions',
+          checked_at: checked(),
+          notes: null,
+          expected_updated_at: base,
+        },
       });
     return { ev, propose };
   }
@@ -164,7 +195,10 @@ describe('lifecycle event change requests (承認待ちキュー)', () => {
     expect(listed).toHaveLength(1);
     expect(listed[0].product_name).toBe('PHP');
 
-    const res = await ok('POST', `/software/lifecycle-event-change-requests/${req.id}/approve`, { as: 'approver', body: { note: 'confirmed on php.net' } });
+    const res = await ok('POST', `/software/lifecycle-event-change-requests/${req.id}/approve`, {
+      as: 'approver',
+      body: { note: 'confirmed on php.net' },
+    });
     expect(res.change_request.status).toBe('approved');
     expect(res.change_request.decided_by).toBe('test:approver');
     expect(res.lifecycle_event.event_date).toBe('2029-01-31');
@@ -174,7 +208,9 @@ describe('lifecycle event change requests (承認待ちキュー)', () => {
     expect(logs[0].actor_id).toBe('test:approver');
     expect(logs[0].after_data.approved_change_request_id).toBe(req.id);
 
-    expect((await call('POST', `/software/lifecycle-event-change-requests/${req.id}/reject`, { as: 'approver' })).body.error.code).toBe('not_pending');
+    expect((await call('POST', `/software/lifecycle-event-change-requests/${req.id}/reject`, { as: 'approver' })).body.error.code).toBe(
+      'not_pending',
+    );
   });
 
   it('supports reject, supersede and forbids self approval', async () => {
@@ -183,7 +219,10 @@ describe('lifecycle event change requests (承認待ちキュー)', () => {
     const second = (await propose('2029-02-28')).body.change_request;
     expect((await ok('GET', `/software/lifecycle-event-change-requests/${first.id}`)).status).toBe('superseded');
 
-    const rejected = await ok('POST', `/software/lifecycle-event-change-requests/${second.id}/reject`, { as: 'approver', body: { note: 'no official source' } });
+    const rejected = await ok('POST', `/software/lifecycle-event-change-requests/${second.id}/reject`, {
+      as: 'approver',
+      body: { note: 'no official source' },
+    });
     expect(rejected.status).toBe('rejected');
     expect((await ok('GET', `/software/lifecycle-events/${ev.id}`)).event_date).toBe('2028-12-31');
 
@@ -208,7 +247,12 @@ describe('release cycle validation (review fixes)', () => {
     expect(bad.status).toBe(422);
     expect(bad.body.error.code).toBe('cycle_not_matchable');
     await ok('POST', '/software/release-cycles', {
-      body: { software_product_id: php.id, cycle: 'PHP 8.4 (Bookworm)', match_pattern: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
+      body: {
+        software_product_id: php.id,
+        cycle: 'PHP 8.4 (Bookworm)',
+        match_pattern: '8.4',
+        assign_to: { target_kind: 'installation', target_id: inst.id },
+      },
     });
   });
 
@@ -226,7 +270,9 @@ describe('release cycle validation (review fixes)', () => {
   it('rejects a retired assign_to target even when another in-service asset matches the cycle', async () => {
     const { php } = await phpOnVps('8.4.3'); // 稼働中の資産
     const old = await create.compute('old-vps');
-    const oldInst = await ok('POST', '/software/installations', { body: { compute_asset_id: old.id, software_product_id: php.id, version: '8.4.1' } });
+    const oldInst = await ok('POST', '/software/installations', {
+      body: { compute_asset_id: old.id, software_product_id: php.id, version: '8.4.1' },
+    });
     await ok('PATCH', `/resources/${old.id}`, { body: { lifecycle_status: 'retired' } });
     const r = await call('POST', '/software/release-cycles', {
       body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: oldInst.id } },
@@ -240,7 +286,13 @@ describe('release cycle validation (review fixes)', () => {
     const cycle = await ok('POST', '/software/release-cycles', {
       body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
     });
-    const base = { verification_status: 'unverified', verified_at: null, verified_by: null, notes: null, expected_updated_at: cycle.updated_at };
+    const base = {
+      verification_status: 'unverified',
+      verified_at: null,
+      verified_by: null,
+      notes: null,
+      expected_updated_at: cycle.updated_at,
+    };
     const bad = await call('PUT', `/software/release-cycles/${cycle.id}`, { body: { ...base, cycle: '8 4', match_pattern: null } });
     expect(bad.status).toBe(422);
     expect(bad.body.error.code).toBe('cycle_not_matchable');
@@ -275,26 +327,52 @@ describe('EOL status', () => {
       body: { software_product_id: ubuntu.id, cycle: '22.04', assign_to: { target_kind: 'compute_os', target_id: vps.id } },
     });
     await ok('POST', '/software/lifecycle-events', {
-      body: { release_cycle_id: ubuntuCycle.id, event_type: 'security_support_end', event_date: '2027-01-31', source_url: 'https://ubuntu.com/about/release-cycle', checked_at: checked() },
+      body: {
+        release_cycle_id: ubuntuCycle.id,
+        event_type: 'security_support_end',
+        event_date: '2027-01-31',
+        source_url: 'https://ubuntu.com/about/release-cycle',
+        checked_at: checked(),
+      },
     });
 
     const pgProduct = await create.product('PostgreSQL');
-    const db = await create.service('postgres-main', { service_kind: 'database', engine: 'PostgreSQL', engine_version: '13.20', software_product_id: pgProduct.id, host_compute_id: vps.id });
+    const db = await create.service('postgres-main', {
+      service_kind: 'database',
+      engine: 'PostgreSQL',
+      engine_version: '13.20',
+      software_product_id: pgProduct.id,
+      host_compute_id: vps.id,
+    });
     const pg13 = await ok('POST', '/software/release-cycles', {
       body: { software_product_id: pgProduct.id, cycle: '13', assign_to: { target_kind: 'service_instance', target_id: db.id } },
     });
     await ok('POST', '/software/lifecycle-events', {
-      body: { release_cycle_id: pg13.id, event_type: 'eol', event_date: '2025-11-13', source_url: 'https://www.postgresql.org/support/versioning/', checked_at: '2026-11-01T00:00:00Z' },
+      body: {
+        release_cycle_id: pg13.id,
+        event_type: 'eol',
+        event_date: '2025-11-13',
+        source_url: 'https://www.postgresql.org/support/versioning/',
+        checked_at: '2026-11-01T00:00:00Z',
+      },
     });
 
     const php = await create.product('PHP');
-    const inst = await ok('POST', '/software/installations', { body: { compute_asset_id: vps.id, software_product_id: php.id, version: '8.4.3' } });
+    const inst = await ok('POST', '/software/installations', {
+      body: { compute_asset_id: vps.id, software_product_id: php.id, version: '8.4.3' },
+    });
     const php84 = await ok('POST', '/software/release-cycles', {
       body: { software_product_id: php.id, cycle: '8.4', assign_to: { target_kind: 'installation', target_id: inst.id } },
     });
     // active_support_end だけでは EOL と断定しない → unknown
     await ok('POST', '/software/lifecycle-events', {
-      body: { release_cycle_id: php84.id, event_type: 'active_support_end', event_date: '2026-12-31', source_url: SRC, checked_at: checked() },
+      body: {
+        release_cycle_id: php84.id,
+        event_type: 'active_support_end',
+        event_date: '2026-12-31',
+        source_url: SRC,
+        checked_at: checked(),
+      },
     });
 
     await create.service('redis', { service_kind: 'cache', engine: 'Redis', engine_version: '7.4.2', host_compute_id: vps.id });
@@ -341,7 +419,15 @@ describe('EOL status', () => {
 
     const cur = await ok('GET', `/software/release-cycles/${cycle.id}`);
     await ok('PUT', `/software/release-cycles/${cycle.id}`, {
-      body: { cycle: '8.4', match_pattern: null, verification_status: 'disputed', verified_at: null, verified_by: null, notes: 'conflicting sources', expected_updated_at: cur.updated_at },
+      body: {
+        cycle: '8.4',
+        match_pattern: null,
+        verification_status: 'disputed',
+        verified_at: null,
+        verified_by: null,
+        notes: 'conflicting sources',
+        expected_updated_at: cur.updated_at,
+      },
     });
     s = await ok('GET', '/eol/status?target_kind=installation&as_of=2026-11-19');
     expect(s.items[0].status).toBe('unknown');
