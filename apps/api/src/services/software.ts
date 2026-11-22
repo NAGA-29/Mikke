@@ -165,7 +165,7 @@ interface CycleRow {
   updated_at: string;
 }
 
-const assignSchema = z.strictObject({
+export const assignSchema = z.strictObject({
   release_cycle_id: uuid.nullable(),
   allow_version_mismatch: z.boolean().default(false),
 });
@@ -276,7 +276,7 @@ const cycleFields = {
   notes: z.string().max(10_000).nullable(),
 };
 
-const createCycleSchema = z.strictObject({
+export const createCycleSchema = z.strictObject({
   software_product_id: uuid,
   cycle: cycleFields.cycle,
   match_pattern: cycleFields.match_pattern.optional(),
@@ -295,7 +295,7 @@ const createCycleSchema = z.strictObject({
 });
 
 // PUT = 全更新。楽観ロック用 expected_updated_at は必須（設計 §12.2-5）
-const putCycleSchema = z.strictObject({ ...cycleFields, expected_updated_at: timestamp });
+export const putCycleSchema = z.strictObject({ ...cycleFields, expected_updated_at: timestamp });
 
 /** match_pattern が無い場合は cycle 自体が照合規則として解析できなければならない */
 function requireMatchable<T extends { cycle: string; match_pattern?: string | null }>(input: T): T {
@@ -412,7 +412,7 @@ const eventFields = {
   notes: z.string().max(10_000).nullable(),
 };
 
-const createEventSchema = z.strictObject({
+export const createEventSchema = z.strictObject({
   release_cycle_id: uuid,
   event_type: z.enum(['release', 'active_support_end', 'security_support_end', 'eol']),
   event_date: eventFields.event_date,
@@ -422,7 +422,7 @@ const createEventSchema = z.strictObject({
   notes: eventFields.notes.optional(),
 });
 
-const putEventSchema = z.strictObject({
+export const putEventSchema = z.strictObject({
   ...eventFields,
   expected_updated_at: timestamp,
   // 承認待ちになった場合に承認者へ伝える根拠・理由

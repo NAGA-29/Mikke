@@ -32,10 +32,10 @@ describe('resources', () => {
   });
 
   it('creates the common row and detail in one transaction (detail failure rolls back)', async () => {
-    await create.repo('first', 'https://github.com/plus9/shared');
+    await create.repo('first', 'https://github.com/example-org/shared');
     // 共通行の INSERT 後に、詳細行の一意制約違反で失敗させる
     const r = await call('POST', '/resources', {
-      body: { resource_type: 'repository', name: 'orphan', detail: { repository_url: 'git@github.com:plus9/shared.git' } },
+      body: { resource_type: 'repository', name: 'orphan', detail: { repository_url: 'git@github.com:example-org/shared.git' } },
     });
     expect(r.status).toBe(409);
     const { rows } = await pool.query(`SELECT count(*)::int AS n FROM resources WHERE name = 'orphan'`);
@@ -71,14 +71,14 @@ describe('resources', () => {
   });
 
   it('normalizes and deduplicates repository URLs', async () => {
-    expect(normalizeRepositoryUrl('git@github.com:PLUS9/Mikke.git')).toBe('https://github.com/PLUS9/Mikke');
-    expect(normalizeRepositoryUrl('https://GitHub.com/PLUS9/Mikke/')).toBe('https://github.com/PLUS9/Mikke');
+    expect(normalizeRepositoryUrl('git@github.com:Example-Org/Mikke.git')).toBe('https://github.com/Example-Org/Mikke');
+    expect(normalizeRepositoryUrl('https://GitHub.com/Example-Org/Mikke/')).toBe('https://github.com/Example-Org/Mikke');
     expect(normalizeRepositoryUrl('https://git.example.com:8443/team/repo.git')).toBe('https://git.example.com:8443/team/repo');
     expect(normalizeRepositoryUrl('https://github.com:443/team/repo')).toBe('https://github.com/team/repo');
     expect(normalizeRepositoryUrl('ssh://git@git.example.com:2222/team/repo.git')).toBe('https://git.example.com/team/repo');
-    await create.repo('mikke', 'https://github.com/plus9/mikke.git');
+    await create.repo('mikke', 'https://github.com/example-org/mikke.git');
     const dup = await call('POST', '/resources', {
-      body: { resource_type: 'repository', name: 'dup', detail: { repository_url: 'git@github.com:plus9/mikke.git' } },
+      body: { resource_type: 'repository', name: 'dup', detail: { repository_url: 'git@github.com:example-org/mikke.git' } },
     });
     expect(dup.status).toBe(409);
   });
@@ -148,5 +148,55 @@ describe('archive / restore (MVP受け入れ基準6)', () => {
     const logs = await ok('GET', `/audit-logs?entity_id=${redis.id}`);
     expect(logs.map((l: any) => l.action)).toEqual(['restore', 'archive', 'create']);
     expect(logs[1].actor_id).toBe('test:admin');
+  });
+});
+
+describe('resource summary（一覧のサマリー用の件数）', () => {
+  it('counts active/archived per type, including types with zero rows', async () => {
+    expect(await ok('GET', '/resources/summary')).toEqual({
+      by_type: {
+        compute: { active: 0, archived: 0 }, application: { active: 0, archived: 0 },
+        service_instance: { active: 0, archived: 0 }, repository: { active: 0, archived: 0 },
+      },
+      total: { active: 0, archived: 0 },
+    });
+
+    await create.compute('vps-a');
+    await create.compute('vps-b');
+    const app = await create.app('portal');
+    await create.repo('web', 'https://github.com/example-org/web');
+    await ok('POST', `/resources/${app.id}/archive`, { as: 'admin' });
+
+    const s = await ok('GET', '/resources/summary');
+    expect(s.by_type.compute).toEqual({ active: 2, archived: 0 });
+    expect(s.by_type.application).toEqual({ active: 0, archived: 1 });
+    expect(s.by_type.repository).toEqual({ active: 1, archived: 0 });
+    expect(s.total).toEqual({ active: 3, archived: 1 });
+  });
+
+  it('requires authentication and is not shadowed by /resources/:id', async () => {
+    expect((await call('GET', '/resources/summary', { as: 'none' })).status).toBe(401);
+  });
+});
+
+describe('resource list pagination（総件数と切り詰めの検知）', () => {
+  it('returns total for the current filters, independent of limit/offset', async () => {
+    for (const n of ['a', 'b', 'c', 'd', 'e']) await create.compute(`host-${n}`);
+    await create.app('portal');
+
+    const page1 = await ok('GET', '/resources?type=compute&limit=2');
+    expect(page1.items.map((r: any) => r.name)).toEqual(['host-a', 'host-b']);
+    expect(page1).toMatchObject({ total: 5, limit: 2, offset: 0 });
+
+    const page3 = await ok('GET', '/resources?type=compute&limit=2&offset=4');
+    expect(page3.items.map((r: any) => r.name)).toEqual(['host-e']);
+    expect(page3.total).toBe(5);
+
+    // 絞り込みなしの総件数・アーカイブの扱いも一覧の条件に一致する
+    expect((await ok('GET', '/resources?limit=1')).total).toBe(6);
+    const host = page1.items[0];
+    await ok('POST', `/resources/${host.id}/archive`, { as: 'admin' });
+    expect((await ok('GET', '/resources?type=compute')).total).toBe(4);
+    expect((await ok('GET', '/resources?type=compute&include_archived=true')).total).toBe(5);
   });
 });

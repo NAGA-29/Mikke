@@ -7,6 +7,7 @@ import { many, withTx } from './db/pool.js';
 import { AppError, fromPgError, invalid } from './errors.js';
 import { parse, uuid } from './lib/validation.js';
 import * as deployments from './services/deployments.js';
+import * as diagrams from './services/diagrams.js';
 import * as eol from './services/eol.js';
 import * as relations from './services/relations.js';
 import * as resources from './services/resources.js';
@@ -54,6 +55,8 @@ export function createApp({ pool, config }: AppDeps) {
 
   // ---- resources -----------------------------------------------------------
   api.get('/resources', read, async (c) => c.json(await resources.listResources(pool, query(c))));
+  // /resources/:id より前に登録する（'summary' を id として解釈させない）
+  api.get('/resources/summary', read, async (c) => c.json(await resources.getResourceSummary(pool)));
   api.get('/resources/:id', read, async (c) => c.json(await resources.getResource(pool, id(c))));
   api.get('/resources/:id/references', read, async (c) => c.json(await resources.getReferences(pool, id(c))));
   api.post('/resources', write, async (c) => {
@@ -101,6 +104,51 @@ export function createApp({ pool, config }: AppDeps) {
   api.patch('/deployments/:id', write, async (c) => {
     const b = await body(c);
     return c.json(await tx(c, (t, a) => deployments.updateDeployment(t, a, id(c), b)));
+  });
+
+  api.delete('/deployments/:id', write, async (c) => {
+    await tx(c, (t, a) => deployments.deleteDeployment(t, a, id(c)));
+    return c.body(null, 204);
+  });
+
+  // ---- diagrams / graph ----------------------------------------------------
+  api.get('/graph', read, async (c) => c.json(await diagrams.getGraph(pool, query(c))));
+  api.get('/diagrams', read, async (c) => c.json(await diagrams.listDiagrams(pool, query(c))));
+  api.get('/diagrams/:id', read, async (c) => c.json(await diagrams.getDiagram(pool, id(c))));
+  api.post('/diagrams', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.createDiagram(t, a, b)), 201);
+  });
+  api.patch('/diagrams/:id', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.updateDiagram(t, a, id(c), b)));
+  });
+  api.delete('/diagrams/:id', write, async (c) => {
+    await tx(c, (t, a) => diagrams.deleteDiagram(t, a, id(c)));
+    return c.body(null, 204);
+  });
+  api.get('/diagrams/:id/nodes', read, async (c) => c.json(await diagrams.listNodes(pool, id(c))));
+  api.get('/diagrams/:id/nodes/:nodeId', read, async (c) => c.json(await diagrams.getNode(pool, id(c), id(c, 'nodeId'))));
+  api.post('/diagrams/:id/nodes', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.createNode(t, a, id(c), b)), 201);
+  });
+  api.patch('/diagrams/:id/nodes/:nodeId', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.updateNode(t, a, id(c), id(c, 'nodeId'), b)));
+  });
+  api.delete('/diagrams/:id/nodes/:nodeId', write, async (c) => {
+    await tx(c, (t, a) => diagrams.deleteNode(t, a, id(c), id(c, 'nodeId')));
+    return c.body(null, 204);
+  });
+  api.get('/diagrams/:id/hidden-edges', read, async (c) => c.json(await diagrams.listHiddenEdges(pool, id(c))));
+  api.post('/diagrams/:id/hidden-edges', write, async (c) => {
+    const b = await body(c);
+    return c.json(await tx(c, (t, a) => diagrams.hideEdge(t, a, id(c), b)), 201);
+  });
+  api.delete('/diagrams/:id/hidden-edges/:kind/:recordId', write, async (c) => {
+    await tx(c, (t, a) => diagrams.unhideEdge(t, a, id(c), c.req.param('kind'), id(c, 'recordId')));
+    return c.body(null, 204);
   });
 
   // ---- software products / installations ----------------------------------

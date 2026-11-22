@@ -58,7 +58,7 @@ describe('relations (MVP受け入れ基準3)', () => {
 describe('deployments (MVP受け入れ基準2)', () => {
   it('manages multiple deployments of one app to prod and stg', async () => {
     const app = await create.app('web');
-    const repo = await create.repo('web', 'https://github.com/plus9/web');
+    const repo = await create.repo('web', 'https://github.com/example-org/web');
     const prod1 = await create.compute('prod-1');
     const prod2 = await create.compute('prod-2');
     const stg = await create.compute('stg-1');
@@ -86,7 +86,7 @@ describe('deployments (MVP受け入れ基準2)', () => {
     const app = await create.app('web');
     const db = await create.service('db', { service_kind: 'database' });
     const hosting = await create.service('cloud-run', { service_kind: 'hosting', engine: 'Cloud Run', is_managed: true });
-    const repo = await create.repo('web', 'https://github.com/plus9/web');
+    const repo = await create.repo('web', 'https://github.com/example-org/web');
     const other = await create.app('other');
 
     const bad = await call('POST', '/deployments', { body: { application_id: app.id, target_resource_id: db.id, environment: 'prod' } });
@@ -103,7 +103,7 @@ describe('deployments (MVP受け入れ基準2)', () => {
 
   it('allows deactivating a deployment whose repository is archived when the same repository_id is resent', async () => {
     const app = await create.app('web');
-    const repo = await create.repo('web', 'https://github.com/plus9/web');
+    const repo = await create.repo('web', 'https://github.com/example-org/web');
     const vps = await create.compute('vps');
     await ok('POST', '/application-repositories', { body: { application_id: app.id, repository_id: repo.id } });
     const d = await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' } });
@@ -114,7 +114,7 @@ describe('deployments (MVP受け入れ基準2)', () => {
 
   it('refuses to unlink a repository still used by deployments', async () => {
     const app = await create.app('web');
-    const repo = await create.repo('web', 'https://github.com/plus9/web');
+    const repo = await create.repo('web', 'https://github.com/example-org/web');
     const vps = await create.compute('vps');
     const link = await ok('POST', '/application-repositories', { body: { application_id: app.id, repository_id: repo.id } });
     await ok('POST', '/deployments', { body: { application_id: app.id, target_resource_id: vps.id, repository_id: repo.id, environment: 'prod' } });

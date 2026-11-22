@@ -1,0 +1,135 @@
+import { expect, test } from '@playwright/test';
+import { api, loginOk, seedResource, unique } from './helpers.js';
+
+test('サービスをUI登録してホスト先を選び、詳細から解除・再設定できる', async ({ page, request }) => {
+  const host = await seedResource(request, { resource_type: 'compute', name: unique('host'), detail: { asset_kind: 'vps' } });
+  const product = await api(request, 'POST', '/software/products', { name: unique('service-product') });
+  expect(product.status).toBe(201);
+  const name = unique('service');
+  await loginOk(page);
+  await page.getByTestId('create-resource').click();
+  await page.getByLabel(/^種別 \*/).selectOption('service_instance');
+  await page.getByLabel('名前 *').fill(name);
+  await page.getByLabel('サービス種別 *').selectOption('database');
+  await page.getByTestId('host_compute_id-search').fill(host.name);
+  await expect(page.getByTestId('host_compute_id-select').getByRole('option', { name: new RegExp(host.name) })).toHaveCount(1);
+  await page.getByTestId('host_compute_id-select').selectOption(host.id);
+  await page.getByTestId('software_product_id-search').fill(product.body.name);
+  await expect(page.getByTestId('software_product_id-select').getByRole('option', { name: product.body.name })).toHaveCount(1);
+  await page.getByTestId('software_product_id-select').selectOption(product.body.id);
+  await page.getByTestId('form-submit').click();
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  const hostTable = page.getByRole('table', { name: 'ホスト先', exact: true });
+  await expect(hostTable.getByRole('link', { name: host.name })).toBeVisible();
+
+  // 未変更の製品・ホストは再送しない。製品は編集時にも名前で表示する。
+  await page.getByRole('link', { name: '編集', exact: true }).click();
+  await expect(page.getByTestId('software_product_id-select')).toHaveValue(product.body.id);
+  await expect(page.getByTestId('software_product_id-select').locator('option:checked')).toContainText(product.body.name);
+  const patch = page.waitForRequest((r) => r.method() === 'PATCH' && /\/resources\//.test(r.url()));
+  await page.getByLabel('説明').fill('参照を保持');
+  await page.getByTestId('form-submit').click();
+  const detail = (await patch).postDataJSON().detail;
+  expect(detail).not.toHaveProperty('host_compute_id');
+  expect(detail).not.toHaveProperty('software_product_id');
+  await expect(hostTable.getByRole('link', { name: host.name })).toBeVisible();
+
+  await page.getByTestId('hosting-edit').click();
+  await page.getByTestId('hosting-host-select').selectOption('');
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(hostTable.getByText('参照なし')).toBeVisible();
+  await page.getByTestId('hosting-edit').click();
+  await page.getByTestId('hosting-host-search').fill(host.name);
+  await expect(page.getByTestId('hosting-host-select').getByRole('option', { name: new RegExp(host.name) })).toHaveCount(1);
+  await page.getByTestId('hosting-host-select').selectOption(host.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(hostTable.getByRole('link', { name: host.name })).toBeVisible();
+});
+
+test('OS製品を名前で選択し、再編集でも保持・解除できる', async ({ page, request }) => {
+  const product = await api(request, 'POST', '/software/products', { name: unique('os-product') });
+  expect(product.status).toBe(201);
+  const name = unique('os-host');
+  await loginOk(page);
+  await page.getByTestId('create-resource').click();
+  await page.getByLabel('名前 *').fill(name);
+  await page.getByLabel('資産種別 *').selectOption('vps');
+  await page.getByTestId('os_software_product_id-search').fill(product.body.name);
+  await expect(page.getByTestId('os_software_product_id-select').getByRole('option', { name: product.body.name })).toHaveCount(1);
+  await page.getByTestId('os_software_product_id-select').selectOption(product.body.id);
+  await page.getByTestId('form-submit').click();
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await page.getByRole('link', { name: '編集', exact: true }).click();
+  const select = page.getByTestId('os_software_product_id-select');
+  await expect(select).toHaveValue(product.body.id);
+  await expect(select.locator('option:checked')).toContainText(product.body.name);
+  await expect(select).not.toContainText(product.body.id);
+  await page.getByLabel('説明').fill('OS製品を保持');
+  await page.getByTestId('form-submit').click();
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await page.getByRole('link', { name: '編集', exact: true }).click();
+  await expect(select).toHaveValue(product.body.id);
+  await select.selectOption('');
+  await page.getByTestId('form-submit').click();
+  await expect(page.getByRole('heading', { name })).toBeVisible();
+  await page.getByRole('link', { name: '編集', exact: true }).click();
+  await expect(select).toHaveValue('');
+});
+
+test('コンピュートからサービスのホスト先を上書きし、行から解除できる', async ({ page, request }) => {
+  const oldHost = await seedResource(request, { resource_type: 'compute', name: unique('old-host'), detail: { asset_kind: 'vps' } });
+  const host = await seedResource(request, { resource_type: 'compute', name: unique('new-host'), detail: { asset_kind: 'vps' } });
+  const service = await seedResource(request, { resource_type: 'service_instance', name: unique('hosted-service'), detail: { service_kind: 'database', host_compute_id: oldHost.id } });
+  await loginOk(page);
+  await page.goto(`/resources/${host.id}`);
+  await page.getByTestId('hosting-add-service').click();
+  await expect(page.getByTestId('hosting-editor')).toContainText('上書きします');
+  await page.getByTestId('hosting-service-search').fill(service.name);
+  await expect(page.getByTestId('hosting-service-select').getByRole('option', { name: new RegExp(service.name) })).toHaveCount(1);
+  await page.getByTestId('hosting-service-select').selectOption(service.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  const table = page.getByRole('table', { name: 'ホストしているサービス', exact: true });
+  await expect(table.getByRole('link', { name: service.name })).toBeVisible();
+  await page.goto(`/resources/${oldHost.id}`);
+  await expect(table.getByText('参照なし')).toBeVisible();
+  await page.goto(`/resources/${host.id}`);
+  await page.getByTestId(`hosting-unset-${service.id}`).click();
+  await page.getByTestId('hosting-cancel').click();
+  await expect(table.getByRole('link', { name: service.name })).toBeVisible();
+  await page.getByTestId(`hosting-unset-${service.id}`).click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(table.getByText('参照なし')).toBeVisible();
+});
+
+test('サービス詳細の「ホスト先」行から、その場でホスト先を設定・変更できる', async ({ page, request }) => {
+  const hostA = await seedResource(request, { resource_type: 'compute', name: unique('host-a'), detail: { asset_kind: 'vps' } });
+  const hostB = await seedResource(request, { resource_type: 'compute', name: unique('host-b'), detail: { asset_kind: 'vps' } });
+  const svc = await seedResource(request, { resource_type: 'service_instance', name: unique('row-db'), detail: { service_kind: 'database' } });
+  await loginOk(page);
+  await page.goto(`/resources/${svc.id}`);
+
+  const card = page.getByTestId('detail-list');
+  await expect(card.getByText('ホスト先', { exact: true })).toBeVisible();
+  await expect(card.getByText('未設定')).toBeVisible();
+
+  await page.getByTestId('host-row-edit').click();
+  await expect(page.getByTestId('hosting-editor')).toBeVisible();
+  await page.getByTestId('hosting-host-search').fill(hostA.name);
+  await page.getByTestId('hosting-host-select').selectOption(hostA.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(card.getByRole('link', { name: hostA.name })).toBeVisible();
+  await expect(card.getByText('未設定')).toHaveCount(0);
+
+  // 変更
+  await expect(page.getByTestId('host-row-edit')).toHaveText('ホスト先を変更');
+  await page.getByTestId('host-row-edit').click();
+  await page.getByTestId('hosting-host-search').fill(hostB.name);
+  await page.getByTestId('hosting-host-select').selectOption(hostB.id);
+  await page.getByTestId('hosting-review').click();
+  await page.getByTestId('hosting-confirm').click();
+  await expect(card.getByRole('link', { name: hostB.name })).toBeVisible();
+});
