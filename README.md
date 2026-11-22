@@ -19,28 +19,56 @@ docs/            設計書・実装メモ
 
 ## 開発
 
+### 1. 初回セットアップ
+
 ```bash
-docker compose up -d          # PostgreSQL 18（mikke / mikke_test）
+docker compose up -d          # PostgreSQL 18（mikke / mikke_test）。5432 が使用中なら下の注を参照
 pnpm install
-cp .env.example .env          # 値を調整（migrate / dev / start はルートの .env を読み込む）
+cp .env.example .env          # migrate / dev はルートの .env を読み込む
 ```
 
-マイグレーション:
+`.env` に最低限必要な値:
+
+| 変数 | 内容 |
+|---|---|
+| `DATABASE_URL` | 例: `postgres://mikke:mikke@localhost:5432/mikke`（必須。未設定だと起動時に `DATABASE_URL is required`） |
+| `PORT` | API の待受ポート（既定 8080） |
+| `MIKKE_API_TOKENS` | トークンのハッシュ一覧（JSON配列）。次の手順で作る |
+
+> 5432 や 8080 が他のプロセスで使われている場合は、`docker-compose.yml` の公開ポート、`DATABASE_URL`、`PORT` を揃えて変える。Web の開発サーバーは `/api` を `apps/web/vite.config.ts` の転送先（既定 `http://localhost:8080`）へ流すので、`PORT` を変えたらそこも合わせる。
+
+### 2. マイグレーション
 
 ```bash
 pnpm migrate
 ```
 
-APIトークン発行（出力のJSONを `MIKKE_API_TOKENS` の配列に追加。生トークンは一度だけ表示）:
+### 3. APIトークンの発行
 
 ```bash
-pnpm --filter @mikke/api token agent:eol-researcher mikke:read mikke:write
+pnpm --filter @mikke/api token <actor_id> mikke:read mikke:write
 ```
 
-起動・テスト:
+出力は2つ。**使い道が違う**ので混同しないこと。
+
+| 出力 | 使い道 |
+|---|---|
+| `mikke_...` で始まる**生トークン**（一度しか表示されない） | Web UI のログイン画面、`Authorization: Bearer ...` に使う。`.env` には書かない |
+| `{"actor_id":...,"token_sha256":...,"scopes":[...]}` の**JSON1行** | `.env` の `MIKKE_API_TOKENS` に配列として書く（サーバーはハッシュしか持たない） |
+
+`.env` の例（トークンが1つの場合）:
+
+```
+MIKKE_API_TOKENS=[{"actor_id":"agent:eol-researcher","token_sha256":"<64桁の16進>","scopes":["mikke:read","mikke:write"]}]
+```
+
+複数ある場合は `[{...},{...}]` のようにカンマ区切りで並べる。`.env` を変えたら API を再起動する。
+
+### 4. 起動・テスト
 
 ```bash
-pnpm dev
+pnpm dev          # API
+pnpm dev:web      # Web UI（http://localhost:5173）
 ```
 
 ```bash

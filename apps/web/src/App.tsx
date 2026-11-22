@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { clearToken, getToken, setToken } from './api';
 import { ResourceList } from './pages/ResourceList';
 import { ResourceDetail } from './pages/ResourceDetail';
+import { ResourceForm } from './pages/ResourceForm';
 
 export function App() {
   const [token, setTok] = useState(getToken());
@@ -20,6 +21,8 @@ export function App() {
         <Routes>
           <Route path="/" element={<Navigate to="/resources" replace />} />
           <Route path="/resources" element={<ResourceList />} />
+          <Route path="/resources/new" element={<ResourceForm key="new" />} />
+          <Route path="/resources/:id/edit" element={<ResourceForm />} />
           <Route path="/resources/:id" element={<ResourceDetail />} />
         </Routes>
       </main>

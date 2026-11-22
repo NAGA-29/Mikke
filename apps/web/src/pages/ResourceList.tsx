@@ -27,7 +27,7 @@ export function ResourceList() {
 
   return (
     <section>
-      <h2>資産</h2>
+      <div className="page-heading"><h2>資産</h2><Link to="/resources/new">新規登録</Link></div>
       <div className="filters">
         <input placeholder="名前で検索" defaultValue={sp.get('q') ?? ''} onChange={(e) => set('q', e.target.value)} />
         <select value={sp.get('type') ?? ''} onChange={(e) => set('type', e.target.value)}>

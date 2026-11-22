@@ -12,6 +12,8 @@ export function ResourceDetail() {
 
   useEffect(() => {
     let live = true;
+    setRes(null);
+    setRefs(null);
     setError(null);
     Promise.all([api<Resource>(`/resources/${id}`), api<Refs>(`/resources/${id}/references`)])
       .then(([r, f]) => { if (live) { setRes(r); setRefs(f); } })
@@ -26,6 +28,7 @@ export function ResourceDetail() {
     <section>
       <p><Link to="/resources">← 一覧</Link></p>
       <h2>{res.name} {res.archived_at && <span className="badge">アーカイブ済み</span>}</h2>
+      {!res.archived_at && <p><Link to={`/resources/${res.id}/edit`}>編集</Link></p>}
       <dl>
         <dt>種別</dt><dd>{RESOURCE_TYPE_LABEL[res.resource_type]}</dd>
         <dt>環境</dt><dd>{res.environment ?? '-'}</dd>
