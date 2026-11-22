@@ -23,3 +23,22 @@ export function formatLocalDate(value: string | null | undefined): string {
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? value : dateOnly.format(d);
 }
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** ISO 8601 → <input type="datetime-local" step="1"> の値（ブラウザのタイムゾーン、秒まで）。不正なら '' */
+export function toLocalInputValue(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+/** datetime-local の値（ブラウザのタイムゾーンとして解釈）→ UTC の ISO 8601。空・不正なら '' */
+export function fromLocalInputValue(value: string): string {
+  if (!value) return '';
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString();
+}
+
+export const browserTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;

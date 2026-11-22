@@ -1,6 +1,6 @@
-import { formatDateTime } from '../../lib/datetime';
+import { browserTimeZone, formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../lib/datetime';
 import { Link, type LinkProps } from 'react-router-dom';
-import { useId, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
+import { useId, useState, type ButtonHTMLAttributes, type HTMLAttributes, type ReactNode, type TableHTMLAttributes } from 'react';
 
 export function Button({ variant = 'secondary', className = '', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -62,4 +62,28 @@ export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
 /** 他の画面へ移動するリンク。操作ボタンと区別できるよう、アイコンと矢印を付けた色付きの見た目にする */
 export function LinkButton({ icon, children, className = '', ...props }: LinkProps & { icon: IconName }) {
   return <Link className={`button button-nav ${className}`} {...props}><Icon name={icon} /><span>{children}</span><Icon name="arrow" size={14} /></Link>;
+}
+
+/**
+ * 日時入力。ブラウザのタイムゾーンで入力・表示し、API へは UTC の ISO 8601 を渡す。
+ * - 値を変更していなければ元の ISO 文字列をそのまま返す（秒未満の精度を失わせない）
+ * - `name` を付けると、ISO 値を持つ hidden input を出力する（FormData 方式のフォーム用）
+ * - `onChange` は ISO 文字列（未入力は ''）を受け取る（state 方式のフォーム用）
+ */
+export function DateTimeField({ label, value, name, onChange, required = false, hint, showNow = true }: {
+  label: string; value: string | null | undefined; name?: string; onChange?: (iso: string) => void;
+  required?: boolean; hint?: ReactNode; showNow?: boolean;
+}) {
+  const original = value ?? '';
+  const [text, setText] = useState(toLocalInputValue(original));
+  const iso = text === toLocalInputValue(original) ? original : fromLocalInputValue(text);
+  const set = (next: string) => { setText(next); onChange?.(next === toLocalInputValue(original) ? original : fromLocalInputValue(next)); };
+  return <div className="datetime-field">
+    <label>{label}<span className="datetime-row">
+      <input type="datetime-local" step="1" value={text} required={required} onChange={(e) => set(e.target.value)} />
+      {showNow && <Button type="button" variant="ghost" onClick={() => set(toLocalInputValue(new Date().toISOString()))}>現在</Button>}
+    </span></label>
+    {name && <input type="hidden" name={name} value={iso} />}
+    <small>{browserTimeZone()} の時刻で入力します。{hint}</small>
+  </div>;
 }

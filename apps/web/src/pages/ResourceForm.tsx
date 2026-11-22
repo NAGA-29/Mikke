@@ -1,4 +1,4 @@
-import { Button, ErrorState, LoadingState, PageHeader } from '../components/ui';
+import { Button, ErrorState, LoadingState, PageHeader, DateTimeField } from '../components/ui';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, RESOURCE_TYPE_LABEL, type Resource, type ResourceType } from '../api';
@@ -183,7 +183,7 @@ function Editor({ resource }: { resource: Resource | null }) {
         <label>状態 *<select name="lifecycle_status" defaultValue={resource?.lifecycle_status ?? 'active'}>
           {['active', 'maintenance', 'retired'].map((v) => <option key={v} value={v}>{v}</option>)}
         </select></label>
-        <label>最終確認日時<input name="last_verified_at" placeholder="2026-11-22T09:00:00+09:00" defaultValue={resource?.last_verified_at ?? ''} /><small>タイムゾーン付きISO 8601形式。空欄は未確認。</small></label>
+        <DateTimeField label="最終確認日時" name="last_verified_at" value={resource?.last_verified_at} hint="空欄は未確認。" />
       </fieldset>
       <fieldset key={type} disabled={saving}>
         <legend>{RESOURCE_TYPE_LABEL[type]}の詳細</legend>

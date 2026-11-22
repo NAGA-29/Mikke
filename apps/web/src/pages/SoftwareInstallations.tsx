@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
+import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -70,8 +70,9 @@ function InstallationForm({ installation: i, computeId, productId, onSaved, onCa
       <ResourcePicker label="導入先" types={['compute']} value={compute} onChange={setCompute} />
       <ProductSelect value={product} onChange={setProduct} /></>}
     {([['version', 'バージョン', 255], ['install_method', '導入方法', 100], ['install_path', '導入パス', 2048],
-      ['config_path', '設定パス', 2048], ['last_verified_at', '最終確認日時（ISO 8601・タイムゾーン必須）', 50]] as const).map(([key, label, max]) =>
+      ['config_path', '設定パス', 2048]] as const).map(([key, label, max]) =>
       <TextField key={key} label={label} maxLength={max} value={fields[key]} onChange={(v) => setFields({ ...fields, [key]: v })} />)}
+    <DateTimeField label="最終確認日時" value={i?.last_verified_at} onChange={(v) => setFields((f) => ({ ...f, last_verified_at: v }))} />
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
   </fieldset></form>;
 }

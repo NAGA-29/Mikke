@@ -1,4 +1,4 @@
-import { Button, ErrorState } from './ui';
+import { Button, ErrorState, DateTimeField } from './ui';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type Resource } from '../api';
 import { FormError } from './FormError';
@@ -121,7 +121,7 @@ export function ReferenceEditor({ selection, resource, onSaved, onCancel }: {
         <label>リビジョン<input name="revision" maxLength={255} defaultValue={deployment?.revision ?? ''} /></label>
         <label>状態<select name="status" defaultValue={deployment?.status ?? 'active'}><option>active</option><option>inactive</option></select></label>
         <small>デプロイを停止扱いにする場合は inactive に変更します。</small>
-        <label>デプロイ日時（タイムゾーン付きISO 8601）<input name="deployed_at" placeholder="2026-01-01T00:00:00Z" defaultValue={deployment?.deployed_at ?? ''} /></label>
+        <DateTimeField label="デプロイ日時" name="deployed_at" value={deployment?.deployed_at} />
         <small>任意項目を空欄にすると未指定（編集時はクリア）になります。</small>
       </>}
       <FormError error={error} />

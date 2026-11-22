@@ -1,4 +1,4 @@
-import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time } from '../components/ui';
+import { Button, DataTable, EmptyState, LoadingState, PageHeader, Time, DateTimeField } from '../components/ui';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../api';
@@ -70,7 +70,7 @@ function CycleForm({ cycle: c, productId, onSaved, onCancel }: {
     <label>確認状態<select value={fields.verification_status} onChange={(e) => setFields({ ...fields, verification_status: e.target.value })}>
       {['unverified', 'verified', 'disputed'].map((v) => <option key={v}>{v}</option>)}
     </select></label>
-    <TextField label="確認日時（ISO 8601・タイムゾーン必須。verified時の空欄はAPIで補完）" maxLength={50} value={fields.verified_at} onChange={(v) => setFields({ ...fields, verified_at: v })} />
+    <DateTimeField label="確認日時" value={c?.verified_at} hint="verified 時に空欄なら API が補完します。" onChange={(v) => setFields((f) => ({ ...f, verified_at: v }))} />
     <TextField label="確認者（verified時の空欄は認証主体）" value={fields.verified_by} onChange={(v) => setFields({ ...fields, verified_by: v })} />
     <label>メモ<textarea maxLength={10000} value={fields.notes} onChange={(e) => setFields({ ...fields, notes: e.target.value })} /></label>
     {!c && <><label><input type="checkbox" checked={assign} onChange={(e) => setAssign(e.target.checked)} />作成と同時に資産へ割り当てる</label>
@@ -92,8 +92,10 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
   cycle: ReleaseCycle; event: LifecycleEvent | null; onSaved: (pending: boolean) => void; onCancel: () => void;
 }) {
   const [type, setType] = useState('eol');
+  // 新規登録の確認日時は現在時刻を既定にする（根拠を今確認して登録するのが通常のため）
+  const [defaultChecked] = useState(() => ev?.checked_at ?? new Date().toISOString());
   const [fields, setFields] = useState({ event_date: ev?.event_date ?? '', source_url: ev && !urlHasCredentials(ev.source_url) ? ev.source_url : '', source_title: ev?.source_title ?? '',
-    checked_at: ev?.checked_at ?? '', notes: ev?.notes ?? '', change_note: '' });
+    checked_at: defaultChecked, notes: ev?.notes ?? '', change_note: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<unknown>(null);
   return <form className="resource-form" onSubmit={async (e) => {
@@ -114,7 +116,7 @@ function EventForm({ cycle, event: ev, onSaved, onCancel }: {
     {ev && fields.event_date !== ev.event_date && <p role="status">日付変更: {ev.event_date} → {fields.event_date || '未入力'}。mikke:eol:approve がない場合は承認待ちとなります。</p>}
     <TextField label="公式根拠URL（認証情報を含めない）" required type="url" credentialFreeUrl maxLength={2048} value={fields.source_url} onChange={(v) => setFields({ ...fields, source_url: v })} />
     <TextField label="根拠のタイトル" maxLength={1000} value={fields.source_title} onChange={(v) => setFields({ ...fields, source_title: v })} />
-    <TextField label="根拠の確認日時（ISO 8601、例: 2026-11-22T09:00:00+09:00。未来不可）" required maxLength={50} value={fields.checked_at} onChange={(v) => setFields({ ...fields, checked_at: v })} />
+    <DateTimeField label="根拠の確認日時" required value={defaultChecked} hint="未来の日時は指定できません。" onChange={(v) => setFields((f) => ({ ...f, checked_at: v }))} />
     <label>メモ<textarea maxLength={10000} value={fields.notes} onChange={(e) => setFields({ ...fields, notes: e.target.value })} /></label>
     {ev && <label>変更理由・承認者への説明<textarea maxLength={10000} value={fields.change_note} onChange={(e) => setFields({ ...fields, change_note: e.target.value })} /></label>}
     <div className="form-actions"><Button data-testid="form-submit" variant="primary">保存</Button><Button data-testid="dialog-cancel" type="button" onClick={onCancel}>キャンセル</Button></div>
